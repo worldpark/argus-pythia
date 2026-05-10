@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: argus
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+
+prometheus:
+  base-url: http://localhost:9090
+
+argus:
+  kafka:
+    topic:
+      metrics-raw: jvm.metrics.raw
+      http-metrics-raw: http.metrics.raw
+      hikari-metrics-raw: hikari.metrics.raw
+server:
+  port: 80

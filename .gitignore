@@ -1,0 +1,31 @@
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local environment
+.env
+.env.*
+!.env.example
+application-local.yml
+application-*.local.yml

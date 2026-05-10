@@ -1,0 +1,103 @@
+spring:
+  application:
+    name: pyshia
+  jackson:
+    time-zone: Asia/Seoul
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pyshia
+    username: ${DB_USERNAME:pyshia}
+    password: ${DB_PASSWORD:pyshia}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+    open-in-view: false
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: pyshia
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+pyshia:
+  kafka:
+    topic:
+      jvm-metrics-raw: jvm.metrics.raw
+      http-metrics-raw: http.metrics.raw
+      hikari-metrics-raw: hikari.metrics.raw
+  email:
+    from: ${MAIL_USERNAME}
+    operator-recipients:
+      - ops@example.com
+  threshold:
+    jvm:
+      cpu-usage-percent:
+        warning: 70
+        critical: 85
+        consecutive: 3
+      heap-usage-percent:
+        warning: 75
+        critical: 90
+        consecutive: 2
+      old-gen-usage-percent:
+        warning: 80
+        critical: 90
+        consecutive: 2
+      gc-avg-pause-seconds:
+        warning: 0.2
+        critical: 0.5
+        consecutive: 1
+      gc-count:
+        warning: 10
+        critical: 30
+        consecutive: 1
+      thread-active-count:
+        warning: 200
+        critical: 500
+        consecutive: 2
+      thread-peak-count:
+        warning: 300
+        critical: 800
+        consecutive: 1
+      thread-daemon-count:
+        warning: 200
+        critical: 500
+        consecutive: 2
+    http:
+      p99-response-seconds:
+        warning: 1.0
+        critical: 3.0
+        consecutive: 2
+      error-rate-percent:
+        warning: 1.0
+        critical: 5.0
+        consecutive: 2
+    hikari:
+      active-connections:
+        warning: 8
+        critical: 10
+        consecutive: 2
+      pending-connections:
+        warning: 1
+        critical: 5
+        consecutive: 1
+      usage-ratio-percent:
+        warning: 80
+        critical: 95
+        consecutive: 2

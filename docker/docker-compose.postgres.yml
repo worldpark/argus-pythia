@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: pyshia
+      POSTGRES_USER: pyshia
+      POSTGRES_PASSWORD: pyshia
+      TZ: Asia/Seoul
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pyshia -d pyshia"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - argus-net
+
+networks:
+  argus-net:
+    name: argus-net
+    driver: bridge
+
+volumes:
+  postgres_data:
+    name: postgres_data
