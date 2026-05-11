@@ -6,6 +6,8 @@ import com.example.pyshia.ai.dto.MetricSummary;
 import com.example.pyshia.ai.dto.TimeSeriesPoint;
 import com.example.pyshia.ai.exception.AiAnalysisException;
 import com.example.pyshia.ai.exception.AiErrorCode;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -32,7 +34,7 @@ public class MetricAnalysisPromptFactory {
 
   public MetricAnalysisPromptFactory(
       @Value("classpath:prompts/metric-analysis.st") Resource templateResource) {
-    this.promptTemplate = new PromptTemplate(templateResource);
+    this.promptTemplate = new PromptTemplate(loadTemplate(templateResource));
   }
 
   public Prompt build(MetricAnalysisRequest request) {
@@ -127,5 +129,14 @@ public class MetricAnalysisPromptFactory {
       return "최근 " + seconds + "초";
     }
     return range.toString();
+  }
+
+  private String loadTemplate(Resource templateResource) {
+    try {
+      return templateResource.getContentAsString(StandardCharsets.UTF_8);
+    } catch (IOException e) {
+      throw new AiAnalysisException(
+          AiErrorCode.INVALID_REQUEST, "failed to load prompt template", e);
+    }
   }
 }

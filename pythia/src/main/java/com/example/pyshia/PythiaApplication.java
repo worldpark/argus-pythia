@@ -8,10 +8,10 @@ import org.springframework.scheduling.annotation.EnableAsync;
 @EnableAsync
 @ConfigurationPropertiesScan
 @SpringBootApplication
-public class PyshiaApplication {
+public class PythiaApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(PyshiaApplication.class, args);
+        SpringApplication.run(PythiaApplication.class, args);
     }
 
 }

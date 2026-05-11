@@ -73,7 +73,7 @@ Any Spring Boot Apps              수집·저장              시각화
 ```
 C:\side_project
 ├── argus/          # Metric Collector
-├── pyshia/         # LLM Analyzer
+├── pythia/         # LLM Analyzer
 ├── docker/         # Docker Compose 및 인프라 설정
 │   └── prometheus/
 │       ├── prometheus.yml
@@ -182,7 +182,7 @@ cd ../argus
 ./gradlew bootRun
 
 # Pythia 실행
-cd ../pyshia
+cd ../pythia
 ./gradlew bootRun
 ```
 
@@ -193,7 +193,7 @@ cd ../pyshia
 ```bash
 # 서비스별 테스트 실행
 cd argus && ./gradlew test
-cd pyshia && ./gradlew test
+cd pythia && ./gradlew test
 ```
 
 ---
@@ -206,6 +206,26 @@ cd pyshia && ./gradlew test
 | 스레드풀 포화 | `jvm_threads_live_threads` 상승 | 스레드 수 임계값 초과 |
 | DB 커넥션 고갈 | `hikaricp_connections_pending` > 0 | pending 발생 즉시 알림 |
 | 힙 메모리 부족 | `jvm_memory_used_bytes / max` > 85% | 사용률 임계값 초과 |
+
+---
+
+## Roadmap
+
+현재 개발 진행 중인 항목입니다.
+
+### Grafana
+
+- [ ] 대시보드 JSON 프로비저닝 — JVM / HTTP / HikariCP 시각화 패널 구성
+
+### LLM 분석 파이프라인 고도화
+
+- [ ] ThresholdEvaluator → LLM 분기 연결 — 복합 패턴 감지 시 `MetricAnalysisService` 호출
+- [ ] PGVector 연동 — 과거 장애 패턴 벡터 저장 및 RAG 조회
+
+### 인프라
+
+- [ ] `jvm.alert` Kafka 토픽 발행 — Pythia Alert 이벤트를 토픽으로 발행
+- [ ] Jenkins CI/CD 파이프라인 구성 — Argus / Pythia 자동 빌드 및 배포
 
 ---
 
