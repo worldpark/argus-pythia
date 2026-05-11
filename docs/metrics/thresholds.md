@@ -1,6 +1,6 @@
 # 메트릭 임계값 정의 (JVM / HTTP / HIKARI)
 
-본 문서는 Pyshia가 수신하는 `*MetricSnapshotDto`의 필드를 기준으로, 대상 프로젝트(Argus 등)의 위험 신호를 판정하기 위한 임계값을 정의한다.
+본 문서는 Pythia가 수신하는 `*MetricSnapshotDto`의 필드를 기준으로, 대상 프로젝트(Argus 등)의 위험 신호를 판정하기 위한 임계값을 정의한다.
 
 - 산출 task: Task 014
 - 적용 task: 후속 ThresholdEvaluator / 알림 라우팅 task
@@ -13,7 +13,7 @@
 | 항목 | 값 |
 |------|---|
 | 적용 도메인 | JVM (`JvmMetricSnapshotDto`), HTTP (`HttpMetricSnapshotDto`), HIKARI (`HikariMetricSnapshotDto`) |
-| 평가 주체 | Pyshia (후속 task의 ThresholdEvaluator) |
+| 평가 주체 | Pythia (후속 task의 ThresholdEvaluator) |
 | 평가 입력 | Kafka 토픽 `*.metrics.raw` 수신 스냅샷 |
 | 평가 단위 | 메트릭별 표의 "평가 단위" 컬럼 참조 (`application+instance` / `+endpoint` / `+pool`) |
 | 단계 | `warning`, `critical` 2단계 |

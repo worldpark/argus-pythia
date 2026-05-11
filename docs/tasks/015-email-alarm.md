@@ -1,10 +1,10 @@
-# 015. Pyshia Email alarm 구현
+# 015. Pythia Email alarm 구현
 
 ## Target
-pyshia
+pythia
 
 ## Goal
-- pyshia 프로젝트에 운영자에게 이메일을 보낼수 있는 기능 추가
+- pythia 프로젝트에 운영자에게 이메일을 보낼수 있는 기능 추가
 
 
 ## Context

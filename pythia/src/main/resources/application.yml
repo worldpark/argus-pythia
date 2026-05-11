@@ -4,9 +4,9 @@ spring:
   jackson:
     time-zone: Asia/Seoul
   datasource:
-    url: jdbc:postgresql://localhost:5432/pyshia
-    username: ${DB_USERNAME:pyshia}
-    password: ${DB_PASSWORD:pyshia}
+    url: jdbc:postgresql://localhost:5432/pythia
+    username: ${DB_USERNAME:pythia}
+    password: ${DB_PASSWORD:pythia}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -20,7 +20,7 @@ spring:
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
-      group-id: pyshia
+      group-id: pythia
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
   mail:
@@ -42,7 +42,7 @@ spring:
           model: gpt-4.1-mini
           temperature: 0.2
 
-pyshia:
+pythia:
   kafka:
     topic:
       jvm-metrics-raw: jvm.metrics.raw

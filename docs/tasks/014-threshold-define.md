@@ -1,10 +1,10 @@
 # 014. JVM, HTTP, HIKARI 임계값 정의 
 
 ## Target
-pyshia
+pythia
 
 ## Goal
-- pyshia 프로젝트에 대상 프로젝트의 위험을 감지할 JVM, HTTP, HIKARI 임계값 정의
+- pythia 프로젝트에 대상 프로젝트의 위험을 감지할 JVM, HTTP, HIKARI 임계값 정의
 
 ## Requirements
 - `docs/metrics/promql.md`에 수집중인 promQL 리스트가 있음

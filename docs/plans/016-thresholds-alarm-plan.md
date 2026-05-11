@@ -1,8 +1,8 @@
-# Task 016: Pyshia 임계값 평가 및 이메일 알림 트리거 — 구현 계획
+# Task 016: Pythia 임계값 평가 및 이메일 알림 트리거 — 구현 계획
 
 ## Context
 
-Task 013에서 Pyshia가 `jvm.metrics.raw` / `http.metrics.raw` / `hikari.metrics.raw` Kafka 토픽 수신 능력을, Task 014에서 `docs/metrics/thresholds.md`로 임계값 정의를, Task 015에서 `EmailService.sendToOperator(subject, body)` 발송 능력을 각각 갖추었다. 그러나 세 Handler(`JvmMetricSnapshotHandler` / `HttpMetricSnapshotHandler` / `HikariMetricSnapshotHandler`)는 모두 `// hook: 후속 Task에서 임계값 평가 및 알림 처리 추가` 주석만 남긴 상태이고, 임계값 평가 로직과 EmailService 호출 트리거가 부재하다.
+Task 013에서 Pythia가 `jvm.metrics.raw` / `http.metrics.raw` / `hikari.metrics.raw` Kafka 토픽 수신 능력을, Task 014에서 `docs/metrics/thresholds.md`로 임계값 정의를, Task 015에서 `EmailService.sendToOperator(subject, body)` 발송 능력을 각각 갖추었다. 그러나 세 Handler(`JvmMetricSnapshotHandler` / `HttpMetricSnapshotHandler` / `HikariMetricSnapshotHandler`)는 모두 `// hook: 후속 Task에서 임계값 평가 및 알림 처리 추가` 주석만 남긴 상태이고, 임계값 평가 로직과 EmailService 호출 트리거가 부재하다.
 
 본 task는 (a) thresholds.md에 정의된 임계값 8종(JVM 5 / HTTP 1 / HIKARI 2)을 application.yml에 외부화하고, (b) 수신 스냅샷마다 임계값을 평가하며, (c) 윈도우(연속 N회)를 만족하는 시점에 `EmailService.sendToOperator`로 알림을 발송하는 능력을 도입한다. 운영자가 임계값 위반을 직접 인지하지 못하던 사각지대를 메우는 것이 목적.
 
@@ -19,10 +19,10 @@ Task 013에서 Pyshia가 `jvm.metrics.raw` / `http.metrics.raw` / `hikari.metric
 
 | 결정 | 선택 | 이유 |
 |------|------|------|
-| 패키지 | **`com.example.pyshia.alert`** (top-level) | `email`, `kafka`, `common`과 같은 결. 임계값 평가 + 알림 라우팅을 한 패키지에 묶어 응집도 ↑ |
+| 패키지 | **`com.example.pythia.alert`** (top-level) | `email`, `kafka`, `common`과 같은 결. 임계값 평가 + 알림 라우팅을 한 패키지에 묶어 응집도 ↑ |
 | 평가 진입점 | **각 Handler `handle()` 끝에서 `ThresholdEvaluator.evaluate(snapshot)` 직접 호출** | Handler에 hook 주석이 이미 있고, 이벤트 발행은 본 task scope 대비 과한 간접화. Handler→Evaluator 의존 1단계만 추가 |
 | 평가 추상화 | **`ThresholdEvaluator` 단일 클래스 + 메트릭별 메서드(`evaluateJvm/Http/Hikari`)** | YAGNI. Strategy 패턴은 메트릭이 더 늘어날 때 도입. 현재 3종은 메서드 분리로 충분 |
-| 임계값 외부화 | **`@ConfigurationProperties("pyshia.threshold")` → `ThresholdProperties` (record 트리)** | yml 키 변경 시 컴파일 타임 검출. 메트릭별 record 분리로 타입 안전성. `@Validated` + `@NotNull` |
+| 임계값 외부화 | **`@ConfigurationProperties("pythia.threshold")` → `ThresholdProperties` (record 트리)** | yml 키 변경 시 컴파일 타임 검출. 메트릭별 record 분리로 타입 안전성. `@Validated` + `@NotNull` |
 | 윈도우 카운팅 | **in-memory `ConcurrentMap<ViolationKey, ViolationState>`** (`ViolationStateStore` 빈) | 본 task scope 내에서 가장 단순. 인스턴스 재시작 시 리셋 허용(첫 윈도우만 다시 채우면 됨). 분산/지속성은 후속 |
 | dedup | **윈도우 만족 첫 스냅샷에서 1회 발송, 같은 severity가 유지되는 동안 silent. 정상 복귀 시 카운터+lastSent 리셋. severity 전이 시 재발송** | 사용자 결정. 매 위반 발송은 폭주, cooldown은 키/타이머 추가로 scope 확장 |
 | 알림 발송 | **`AlertNotifier` 빈 + `@Async` 메서드 → `EmailService.sendToOperator` 위임** | `@EnableAsync` 1줄 + `@Async` 1줄. 사용자 결정. Handler/Evaluator는 fire-and-forget |
@@ -49,10 +49,10 @@ Task 013에서 Pyshia가 `jvm.metrics.raw` / `http.metrics.raw` / `hikari.metric
 
 ### 신규 파일
 
-**`pyshia/src/main/resources/application.yml`** (수정)
-- `pyshia.threshold.*` 트리 추가. 메트릭별 키 (총 13종):
+**`pythia/src/main/resources/application.yml`** (수정)
+- `pythia.threshold.*` 트리 추가. 메트릭별 키 (총 13종):
   ```yaml
-  pyshia:
+  pythia:
     threshold:
       jvm:
         cpu-usage-percent:           { warning: 70,  critical: 85,  consecutive: 3 }
@@ -73,10 +73,10 @@ Task 013에서 Pyshia가 `jvm.metrics.raw` / `http.metrics.raw` / `hikari.metric
   ```
 - 5종 신규 임계값은 **권장값**이며 thresholds.md 보강 시 근거와 함께 확정. 운영 데이터로 조정 가능.
 
-**`com.example.pyshia.PyshiaApplication`** (수정)
+**`com.example.pythia.PythiaApplication`** (수정)
 - `@EnableAsync` 어노테이션 추가 (한 줄). 기존 `@ConfigurationPropertiesScan` 유지
 
-**`com.example.pyshia.alert.config.ThresholdProperties`** — `@ConfigurationProperties("pyshia.threshold")`, `@Validated` record
+**`com.example.pythia.alert.config.ThresholdProperties`** — `@ConfigurationProperties("pythia.threshold")`, `@Validated` record
 - `JvmThresholds jvm`, `HttpThresholds http`, `HikariThresholds hikari` (각 record `@NotNull` 필드)
 - `JvmThresholds`: `cpuUsagePercent`, `heapUsagePercent`, `oldGenUsagePercent`, `gcAvgPauseSeconds`, `gcCount`, `threadActiveCount`, `threadPeakCount`, `threadDaemonCount` (8 필드)
 - `HttpThresholds`: `p99ResponseSeconds`, `errorRatePercent` (2 필드)
@@ -84,31 +84,31 @@ Task 013에서 Pyshia가 `jvm.metrics.raw` / `http.metrics.raw` / `hikari.metric
 - 각 필드는 `Limit` record
 - `Limit(BigDecimal warning, BigDecimal critical, int consecutive)` — 부팅 시 `warning.compareTo(critical) < 0` 검증 (모든 신규 메트릭도 단조 증가). record 컴팩트 생성자에서 단조성 self-check, 위반 시 `ThresholdConfigException(ThresholdConfigErrorCode.NON_MONOTONIC)` throw
 
-**`com.example.pyshia.alert.domain.MetricKind`** — enum (총 13종)
+**`com.example.pythia.alert.domain.MetricKind`** — enum (총 13종)
 - 기존 8종: `JVM_CPU`, `JVM_HEAP`, `JVM_GC_PAUSE`, `JVM_GC_COUNT`, `JVM_THREAD_ACTIVE`, `HTTP_P99`, `HIKARI_ACTIVE`, `HIKARI_PENDING`
 - 신규 5종: `JVM_HEAP_OLD_GEN`, `JVM_THREAD_PEAK`, `JVM_THREAD_DAEMON`, `HTTP_ERROR_RATE`, `HIKARI_USAGE_RATIO`
 - 각 enum에 표시명(한글/영문) + 단위(%, 초, 개 등) 보유 — 알림 본문에 사용
 - 비교 연산자(GT/GTE)도 enum 필드로 보유 권장: 기존 8종 그대로, 신규 5종 모두 GT
 
-**`com.example.pyshia.alert.domain.Severity`** — enum
+**`com.example.pythia.alert.domain.Severity`** — enum
 - `WARNING`, `CRITICAL`
 
-**`com.example.pyshia.alert.domain.ViolationKey`** — record
+**`com.example.pythia.alert.domain.ViolationKey`** — record
 - `MetricKind kind`, `String application`, `String instance`, `String sub` (endpoint/pool, JVM은 null)
 - equals/hashCode는 record 자동 생성 사용
 
-**`com.example.pyshia.alert.state.ViolationState`** — class (mutable, store 내부에서만 변형)
+**`com.example.pythia.alert.state.ViolationState`** — class (mutable, store 내부에서만 변형)
 - `int warningCount`, `int criticalCount`, `Severity lastSentSeverity` (nullable)
 - 상태 전이 메서드: `recordViolation(Severity)`, `reset()`, `markSent(Severity)`
 
-**`com.example.pyshia.alert.state.ViolationStateStore`** — `@Component`
+**`com.example.pythia.alert.state.ViolationStateStore`** — `@Component`
 - `ConcurrentMap<ViolationKey, ViolationState>` 보유
 - public API:
   - `boolean shouldSend(ViolationKey, Severity, int window)` — 카운트++ → window 만족 && lastSent != current면 true 반환 + `markSent` 처리
   - `void clear(ViolationKey)` — 정상 복귀 시 카운터/lastSent 리셋
 - 키별 락 또는 `compute` 사용으로 동시성 안전
 
-**`com.example.pyshia.alert.service.ThresholdEvaluator`** — `@Service`
+**`com.example.pythia.alert.service.ThresholdEvaluator`** — `@Service`
 - 의존: `ThresholdProperties`, `ViolationStateStore`, `AlertNotifier` (생성자 주입)
 - public API:
   - `void evaluateJvm(JvmMetricSnapshotDto snapshot)` — cpu/heap/oldGen/gc-pause/gc-count/threadActive/threadPeak/threadDaemon **8개** 평가
@@ -121,21 +121,21 @@ Task 013에서 Pyshia가 `jvm.metrics.raw` / `http.metrics.raw` / `hikari.metric
   4. 정상: `ViolationStateStore.clear(key)`
 - HTTP errorRate / Hikari usageRatio는 단위 가정에 의존 (§6 트레이드오프 참조). yml 키 이름 (`error-rate-percent`, `usage-ratio-percent`)에 단위를 박아 가정 명시. 실제 단위 불일치 시 첫 운영에서 false positive/negative로 발견되면 yml 임계값 조정 또는 assembler 단위 변환 보강.
 
-**`com.example.pyshia.alert.service.AlertNotifier`** — `@Service`
+**`com.example.pythia.alert.service.AlertNotifier`** — `@Service`
 - 의존: `EmailService`, `AlertMessageFormatter`
 - `@Async` 메서드 `void notify(MetricKind, Severity, ViolationKey, BigDecimal value, BigDecimal threshold, int consecutive)`
 - 본문 포매팅 → `emailService.sendToOperator(subject, body)` 호출
 - `EmailSendException`은 catch + log.error만 (재throw 안 함 — fire-and-forget)
 
-**`com.example.pyshia.alert.service.AlertMessageFormatter`** — `@Component`
+**`com.example.pythia.alert.service.AlertMessageFormatter`** — `@Component`
 - `String subject(MetricKind, Severity, ViolationKey)` — 예: `"[CRITICAL] JVM CPU 사용률 위반 (argus / node-1)"`
 - `String body(MetricKind, Severity, ViolationKey, BigDecimal value, BigDecimal threshold, int consecutive)` — 한 줄 또는 키-값 나열
 
-**`com.example.pyshia.alert.exception.ThresholdConfigErrorCode`** — enum implements `ErrorCode`
+**`com.example.pythia.alert.exception.ThresholdConfigErrorCode`** — enum implements `ErrorCode`
 - `NON_MONOTONIC("THRESHOLD_001", "warning must be less than critical")`
 - (필요 시) `MISSING_THRESHOLD("THRESHOLD_002", "...")` — yml 키 누락은 `@NotNull`이 우선 잡으므로 보조
 
-**`com.example.pyshia.alert.exception.ThresholdConfigException`** — extends `CustomException`
+**`com.example.pythia.alert.exception.ThresholdConfigException`** — extends `CustomException`
 
 ### 수정 대상 파일
 
@@ -149,14 +149,14 @@ Task 013에서 Pyshia가 `jvm.metrics.raw` / `http.metrics.raw` / `hikari.metric
 - 각 신규 행의 임계값/근거는 application.yml 권장값과 일치
 - §2.5 단위 주의에 errorRate(%)와 usageRatio(%) 단위 가정 추가 — assembler 변환 가정
 
-**`com.example.pyshia.kafka.consumer.JvmMetricSnapshotHandler`**
+**`com.example.pythia.kafka.consumer.JvmMetricSnapshotHandler`**
 - `ThresholdEvaluator` 생성자 주입
 - hook 주석 자리에 `evaluator.evaluateJvm(snapshot)` 호출 한 줄 추가
 
-**`com.example.pyshia.kafka.consumer.HttpMetricSnapshotHandler`**
+**`com.example.pythia.kafka.consumer.HttpMetricSnapshotHandler`**
 - 동일 패턴, `evaluator.evaluateHttp(snapshot)`
 
-**`com.example.pyshia.kafka.consumer.HikariMetricSnapshotHandler`**
+**`com.example.pythia.kafka.consumer.HikariMetricSnapshotHandler`**
 - 동일 패턴, `evaluator.evaluateHikari(snapshot)`
 
 ### 수정하지 않는 파일 (제약/안전)
@@ -167,7 +167,7 @@ Task 013에서 Pyshia가 `jvm.metrics.raw` / `http.metrics.raw` / `hikari.metric
 
 ### 신규 테스트 파일 (CLAUDE.md "테스트 없이 기능 추가 금지" 충족)
 
-- `pyshia/src/test/java/.../alert/config/ThresholdPropertiesTest.java`
+- `pythia/src/test/java/.../alert/config/ThresholdPropertiesTest.java`
   - yml 바인딩 round-trip
   - 단조성 검증 fail-fast (warning >= critical 케이스에서 컨텍스트 로딩 실패)
 - `.../alert/state/ViolationStateStoreTest.java`
@@ -261,7 +261,7 @@ AlertNotifier.notify(...)   ← @Async (별도 스레드 풀에서 실행)
 
 | 단계 | 상황 | 처리 |
 |------|------|------|
-| 부팅 | `pyshia.threshold.*` 키 누락 | `ThresholdProperties` `@NotNull` → 컨텍스트 로딩 실패 (의도) |
+| 부팅 | `pythia.threshold.*` 키 누락 | `ThresholdProperties` `@NotNull` → 컨텍스트 로딩 실패 (의도) |
 | 부팅 | `warning >= critical` (단조성 위반) | record 컴팩트 생성자에서 검증 → `ThresholdConfigException(NON_MONOTONIC)` throw → 컨텍스트 로딩 실패 (fail-fast) |
 | 평가 | snapshot 단일 메트릭 값 null / MISSING | 해당 메트릭만 skip, log.debug |
 | 평가 | snapshot.application/instance null | log.warn + 해당 평가만 skip (키 구성 불가) |
@@ -279,12 +279,12 @@ AlertNotifier.notify(...)   ← @Async (별도 스레드 풀에서 실행)
 ## 5. 검증 방법
 
 ### 빌드 / 단위 테스트
-- `./gradlew :pyshia:build` → BUILD SUCCESSFUL
+- `./gradlew :pythia:build` → BUILD SUCCESSFUL
 - 위 §2 신규 테스트 파일 5종 + 보강 3종 모두 통과
-- 단조성 검증 테스트는 `@SpringBootTest(properties = "pyshia.threshold.jvm.cpu-usage-percent.warning=90")` 같은 잘못된 값으로 컨텍스트 로딩이 실패함을 `assertThrows`로 확인
+- 단조성 검증 테스트는 `@SpringBootTest(properties = "pythia.threshold.jvm.cpu-usage-percent.warning=90")` 같은 잘못된 값으로 컨텍스트 로딩이 실패함을 `assertThrows`로 확인
 
 ### 컨텍스트 로딩 검증
-- 기존 `PyshiaApplicationTests` 통과 (정상 yml 값으로)
+- 기존 `PythiaApplicationTests` 통과 (정상 yml 값으로)
 - `ThresholdProperties`가 `@ConfigurationPropertiesScan`을 통해 빈 등록되는지 확인
 
 ### 통합 검증 (선택, 본 task 필수 아님)
@@ -304,7 +304,7 @@ AlertNotifier.notify(...)   ← @Async (별도 스레드 풀에서 실행)
 
 ## 6. 트레이드오프
 
-1. **in-memory 상태 (분산/지속성 없음)**: 인스턴스 재시작 시 카운터/lastSent 모두 리셋되어 첫 윈도우(연속 N회)를 다시 채워야 알림이 나간다. 즉 재시작 직후 1~2건의 위반이 묻힐 수 있음. 그러나 본 task scope에서 Redis/DB 도입은 과함. Pyshia가 단일 인스턴스로 운영되는 한 문제 없고, 다중 인스턴스 시 같은 키가 중복 발송될 수 있다 — 후속에서 영속화 또는 단일 leader 도입.
+1. **in-memory 상태 (분산/지속성 없음)**: 인스턴스 재시작 시 카운터/lastSent 모두 리셋되어 첫 윈도우(연속 N회)를 다시 채워야 알림이 나간다. 즉 재시작 직후 1~2건의 위반이 묻힐 수 있음. 그러나 본 task scope에서 Redis/DB 도입은 과함. Pythia가 단일 인스턴스로 운영되는 한 문제 없고, 다중 인스턴스 시 같은 키가 중복 발송될 수 있다 — 후속에서 영속화 또는 단일 leader 도입.
 
 2. **dedup이 "severity 전이"로만 동작**: warning 상태로 며칠 유지되면 사람이 잊을 수 있음. cooldown(주기적 재알림) 미도입으로 "한 번 알림 후 묵음" 위험. 그러나 사용자 결정이 폭주 방지 우선이고, 주기적 재알림은 cooldown 키/타이머 + 별도 스케줄러가 필요해 scope 확장. 후속에서 추가.
 
@@ -335,39 +335,39 @@ AlertNotifier.notify(...)   ← @Async (별도 스레드 풀에서 실행)
 ## 핵심 파일 경로
 
 신규 (절대 경로):
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\alert\config\ThresholdProperties.java`
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\alert\domain\MetricKind.java`
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\alert\domain\Severity.java`
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\alert\domain\ViolationKey.java`
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\alert\state\ViolationState.java`
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\alert\state\ViolationStateStore.java`
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\alert\service\ThresholdEvaluator.java`
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\alert\service\AlertNotifier.java`
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\alert\service\AlertMessageFormatter.java`
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\alert\exception\ThresholdConfigErrorCode.java`
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\alert\exception\ThresholdConfigException.java`
-- `C:\side_project\pyshia\src\test\java\com\example\pyshia\alert\config\ThresholdPropertiesTest.java`
-- `C:\side_project\pyshia\src\test\java\com\example\pyshia\alert\state\ViolationStateStoreTest.java`
-- `C:\side_project\pyshia\src\test\java\com\example\pyshia\alert\service\ThresholdEvaluatorTest.java`
-- `C:\side_project\pyshia\src\test\java\com\example\pyshia\alert\service\AlertNotifierTest.java`
+- `C:\side_project\pythia\src\main\java\com\example\pythia\alert\config\ThresholdProperties.java`
+- `C:\side_project\pythia\src\main\java\com\example\pythia\alert\domain\MetricKind.java`
+- `C:\side_project\pythia\src\main\java\com\example\pythia\alert\domain\Severity.java`
+- `C:\side_project\pythia\src\main\java\com\example\pythia\alert\domain\ViolationKey.java`
+- `C:\side_project\pythia\src\main\java\com\example\pythia\alert\state\ViolationState.java`
+- `C:\side_project\pythia\src\main\java\com\example\pythia\alert\state\ViolationStateStore.java`
+- `C:\side_project\pythia\src\main\java\com\example\pythia\alert\service\ThresholdEvaluator.java`
+- `C:\side_project\pythia\src\main\java\com\example\pythia\alert\service\AlertNotifier.java`
+- `C:\side_project\pythia\src\main\java\com\example\pythia\alert\service\AlertMessageFormatter.java`
+- `C:\side_project\pythia\src\main\java\com\example\pythia\alert\exception\ThresholdConfigErrorCode.java`
+- `C:\side_project\pythia\src\main\java\com\example\pythia\alert\exception\ThresholdConfigException.java`
+- `C:\side_project\pythia\src\test\java\com\example\pythia\alert\config\ThresholdPropertiesTest.java`
+- `C:\side_project\pythia\src\test\java\com\example\pythia\alert\state\ViolationStateStoreTest.java`
+- `C:\side_project\pythia\src\test\java\com\example\pythia\alert\service\ThresholdEvaluatorTest.java`
+- `C:\side_project\pythia\src\test\java\com\example\pythia\alert\service\AlertNotifierTest.java`
 
 수정 (절대 경로):
 - `C:\side_project\docs\metrics\thresholds.md` — §3/§4/§5에 신규 5종 행 추가, §6 매핑 부록 5행 추가, §7에서 5종 제거(strikethrough), §8 Changelog 갱신, §2.5에 errorRate/usageRatio 단위 가정 추가
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\PyshiaApplication.java` — `@EnableAsync` 한 줄 추가
-- `C:\side_project\pyshia\src\main\resources\application.yml` — `pyshia.threshold.*` 트리 추가 (13종)
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\kafka\consumer\JvmMetricSnapshotHandler.java` — Evaluator 주입 + 호출 한 줄
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\kafka\consumer\HttpMetricSnapshotHandler.java` — 동일
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\kafka\consumer\HikariMetricSnapshotHandler.java` — 동일
-- `C:\side_project\pyshia\src\test\java\com\example\pyshia\kafka\consumer\JvmMetricSnapshotHandlerTest.java` — Evaluator mock + verify 보강
-- `C:\side_project\pyshia\src\test\java\com\example\pyshia\kafka\consumer\HttpMetricSnapshotHandlerTest.java` — 동일
-- `C:\side_project\pyshia\src\test\java\com\example\pyshia\kafka\consumer\HikariMetricSnapshotHandlerTest.java` — 동일
+- `C:\side_project\pythia\src\main\java\com\example\pythia\PythiaApplication.java` — `@EnableAsync` 한 줄 추가
+- `C:\side_project\pythia\src\main\resources\application.yml` — `pythia.threshold.*` 트리 추가 (13종)
+- `C:\side_project\pythia\src\main\java\com\example\pythia\kafka\consumer\JvmMetricSnapshotHandler.java` — Evaluator 주입 + 호출 한 줄
+- `C:\side_project\pythia\src\main\java\com\example\pythia\kafka\consumer\HttpMetricSnapshotHandler.java` — 동일
+- `C:\side_project\pythia\src\main\java\com\example\pythia\kafka\consumer\HikariMetricSnapshotHandler.java` — 동일
+- `C:\side_project\pythia\src\test\java\com\example\pythia\kafka\consumer\JvmMetricSnapshotHandlerTest.java` — Evaluator mock + verify 보강
+- `C:\side_project\pythia\src\test\java\com\example\pythia\kafka\consumer\HttpMetricSnapshotHandlerTest.java` — 동일
+- `C:\side_project\pythia\src\test\java\com\example\pythia\kafka\consumer\HikariMetricSnapshotHandlerTest.java` — 동일
 
 참조 (수정 없음):
 - `C:\side_project\docs\metrics\thresholds.md` — 임계값 정의 출처
 - `C:\side_project\docs\metrics\promqls.md` — DTO 필드 ↔ PromQL 매핑
 - `C:\side_project\docs\tasks\016-thresholds-alarm.md` — 본 task 명세
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\email\EmailService.java` — `sendToOperator(subject, body)` 사용
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\common\exception\CustomException.java`, `ErrorCode.java`
+- `C:\side_project\pythia\src\main\java\com\example\pythia\email\EmailService.java` — `sendToOperator(subject, body)` 사용
+- `C:\side_project\pythia\src\main\java\com\example\pythia\common\exception\CustomException.java`, `ErrorCode.java`
 - 모든 `*MetricSnapshotDto` 및 하위 DTO
 
 ---

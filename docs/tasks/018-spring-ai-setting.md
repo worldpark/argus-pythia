@@ -1,10 +1,10 @@
 # 018. LLM 사용을 위한 Spring AI 환경 세팅
 
 ## Target
-pyshia
+pythia
 
 ## 1. 목표 (Goal)
-- pyshia 프로젝트에 메트릭 데이터를 request 받고 분석할 LLM과 통신하기 위한 Spring AI 환경 세팅
+- pythia 프로젝트에 메트릭 데이터를 request 받고 분석할 LLM과 통신하기 위한 Spring AI 환경 세팅
 - Request DTO 까지 작성
 - 현재 LLM은 OpenAI의 GPT-4.1 mini 모델을 사용할것이지만 차후 Anthropic의 모델을 사용할 가능성도 있으니 확장성 있게 설계
 

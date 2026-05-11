@@ -1,12 +1,12 @@
-# 013. Pyshia Kafka Consumer 환경 구성
+# 013. Pythia Kafka Consumer 환경 구성
 
 ## Target
-pyshia
+pythia
 
 ---
 
 ## Goal
-- pyshia 프로젝트에 Kafka Consumer 환경을 구성
+- pythia 프로젝트에 Kafka Consumer 환경을 구성
 
 ---
 

@@ -1,8 +1,8 @@
-# Task 018: Pyshia Spring AI 환경 세팅 — 구현 계획
+# Task 018: Pythia Spring AI 환경 세팅 — 구현 계획
 
 ## Context
 
-Pyshia는 Task 013~017을 거치며 Kafka 메트릭 수신 / 임계값 평가 / 이메일 알림 / 영속화 능력을 갖췄으나, **LLM 기반 복합 패턴 분석** (architecture.md의 "LLM Analyzer" 모듈)이 비어 있다. 단순 임계값으로는 잡히지 않는 복합 패턴(예: GC 급증 + P99 동시 튐) 분석을 위해 후속 Task에서 LLM 호출이 필요하다.
+Pythia는 Task 013~017을 거치며 Kafka 메트릭 수신 / 임계값 평가 / 이메일 알림 / 영속화 능력을 갖췄으나, **LLM 기반 복합 패턴 분석** (architecture.md의 "LLM Analyzer" 모듈)이 비어 있다. 단순 임계값으로는 잡히지 않는 복합 패턴(예: GC 급증 + P99 동시 튐) 분석을 위해 후속 Task에서 LLM 호출이 필요하다.
 
 본 task는 그 호출 가능 능력 자체 — 즉 (a) Spring AI **2.0.0-M6** 자동 구성으로 OpenAI **gpt-4.1-mini** 모델에 연결되는 `ChatClient`, (b) 분석 입력을 표현하는 Request DTO, (c) DTO → Prompt 문자열 변환기, (d) DTO를 받아 LLM 응답 문자열을 돌려주는 Service 진입점 — 까지를 신규 도입한다. 후속 task(임계값 evaluator의 복합 패턴 분기 → 호출 / 응답 파싱 / RAG 컨텍스트 주입)는 본 task 범위 외다.
 
@@ -50,7 +50,7 @@ Pyshia는 Task 013~017을 거치며 Kafka 메트릭 수신 / 임계값 평가 / 
 
 ### 신규 파일
 
-**`pyshia/build.gradle` (수정)**
+**`pythia/build.gradle` (수정)**
 - `dependencyManagement` 블록 신설: Spring AI BOM
 - `dependencies`에 추가: `implementation 'org.springframework.ai:spring-ai-starter-model-openai'`
 - `repositories` 블록에 Spring milestone repo 추가 (M6는 Maven Central에 미배포)
@@ -76,7 +76,7 @@ dependencies {
 
 > Spring AI 2.0은 내부적으로 Jackson 3(`tools.jackson` 패키지)를 사용한다. 본 프로젝트의 다른 직렬화 경로(Spring Boot 자동 ObjectMapper, Kafka JacksonJsonSerializer)는 Spring Boot 4의 Jackson 2를 그대로 사용하며 격리되므로 영향 없음. 우리 DTO record는 Spring AI 직렬화 경로를 거치지 않는다 (PromptFactory가 PromptTemplate placeholder로 직접 렌더링).
 
-**`pyshia/src/main/resources/application.yml` (수정)**
+**`pythia/src/main/resources/application.yml` (수정)**
 ```yaml
 spring:
   ai:
@@ -89,11 +89,11 @@ spring:
 ```
 > `temperature` 0.2: 분석 일관성 우선 (값은 후속 튜닝 시 yml만 변경)
 
-**`com.example.pyshia.ai.config.ChatClientConfig`** — `@Configuration`
+**`com.example.pythia.ai.config.ChatClientConfig`** — `@Configuration`
 - `ChatClient.Builder` 주입
 - `@Bean ChatClient chatClient(ChatClient.Builder builder)` 등록 — 현 단계에선 default system prompt 미설정 (PromptFactory가 user 메시지 일체 구성). 향후 system prompt 추가 시 이 클래스에서만 변경
 
-**`com.example.pyshia.ai.dto.MetricAnalysisRequest`** — record
+**`com.example.pythia.ai.dto.MetricAnalysisRequest`** — record
 ```java
 public record MetricAnalysisRequest(
     AnalysisTarget target,
@@ -101,7 +101,7 @@ public record MetricAnalysisRequest(
     List<TimeSeriesPoint> timeSeries) {}
 ```
 
-**`com.example.pyshia.ai.dto.AnalysisTarget`** — record
+**`com.example.pythia.ai.dto.AnalysisTarget`** — record
 ```java
 public record AnalysisTarget(
     String application,
@@ -110,7 +110,7 @@ public record AnalysisTarget(
 ) {}
 ```
 
-**`com.example.pyshia.ai.dto.MetricSummary`** — record
+**`com.example.pythia.ai.dto.MetricSummary`** — record
 ```java
 public record MetricSummary(
     String metricName,        // ex: "process_cpu_usage"
@@ -120,9 +120,9 @@ public record MetricSummary(
 ) {}
 ```
 
-**`com.example.pyshia.ai.dto.SummaryAggregation`** — enum: `AVG`, `MAX`
+**`com.example.pythia.ai.dto.SummaryAggregation`** — enum: `AVG`, `MAX`
 
-**`com.example.pyshia.ai.dto.TimeSeriesPoint`** — record
+**`com.example.pythia.ai.dto.TimeSeriesPoint`** — record
 ```java
 public record TimeSeriesPoint(
     OffsetDateTime timestamp,
@@ -132,7 +132,7 @@ public record TimeSeriesPoint(
 ```
 > 시계열을 metric별 분리 record로 만들지 않고 (metricName, value) flat 구조로 둠 — 다양한 메트릭이 같은 시계열에 섞여도 단일 표로 렌더링 가능. PromptFactory가 정렬·그룹핑 담당.
 
-**`com.example.pyshia.ai.prompt.MetricAnalysisPromptFactory`** — `@Component`
+**`com.example.pythia.ai.prompt.MetricAnalysisPromptFactory`** — `@Component`
 - `Prompt build(MetricAnalysisRequest request)` (Spring AI `Prompt` 반환)
 - 내부:
   - 검증: target/summaries/timeSeries 필수 (null/empty → `AiAnalysisException(INVALID_REQUEST)`)
@@ -144,7 +144,7 @@ public record TimeSeriesPoint(
   - `String renderTimeSeriesTable(List<TimeSeriesPoint>)` → 헤더 `timestamp\tmetric\tvalue` + N행
   - `String renderRange(Duration)` → "최근 15분" 형태 (특수 케이스: 15분이면 명세 문구 그대로, 그 외 `Duration.toString()` 변형)
 
-**`pyshia/src/main/resources/prompts/metric-analysis.st`** — Spring AI 템플릿
+**`pythia/src/main/resources/prompts/metric-analysis.st`** — Spring AI 템플릿
 ```text
 # 분석 대상
 - application: {application}
@@ -165,7 +165,7 @@ public record TimeSeriesPoint(
 ```
 > 명세 입력 프롬프트 그대로. "각 메트릭별 평균값 혹은 최대값"은 `{metricSummary}` 치환 결과로 대체.
 
-**`com.example.pyshia.ai.service.MetricAnalysisService`** — `@Service`
+**`com.example.pythia.ai.service.MetricAnalysisService`** — `@Service`
 - 의존: `ChatClient`, `MetricAnalysisPromptFactory` (생성자 주입)
 - public: `String analyze(MetricAnalysisRequest request)`
   - PromptFactory.build → Prompt
@@ -173,36 +173,36 @@ public record TimeSeriesPoint(
   - 응답 null/blank → `AiAnalysisException(EMPTY_RESPONSE)`
   - Spring AI runtime 예외(`org.springframework.ai.retry.NonTransientAiException` 등 super: `RuntimeException`) → catch → `AiAnalysisException(LLM_CALL_FAILURE, cause)` 변환
 
-**`com.example.pyshia.ai.exception.AiAnalysisException`** — `extends CustomException`
+**`com.example.pythia.ai.exception.AiAnalysisException`** — `extends CustomException`
 - 생성자: `(AiErrorCode, String message)`, `(AiErrorCode, String message, Throwable cause)`
 
-**`com.example.pyshia.ai.exception.AiErrorCode`** — enum, `implements ErrorCode`
+**`com.example.pythia.ai.exception.AiErrorCode`** — enum, `implements ErrorCode`
 - `INVALID_REQUEST("AI_001", "Analysis request payload is invalid")`
 - `LLM_CALL_FAILURE("AI_002", "LLM call failed")`
 - `EMPTY_RESPONSE("AI_003", "LLM returned empty response")`
 
 ### 신규 테스트 파일
 
-**`pyshia/src/test/java/com/example/pyshia/ai/prompt/MetricAnalysisPromptFactoryTest.java`** (단위)
+**`pythia/src/test/java/com/example/pythia/ai/prompt/MetricAnalysisPromptFactoryTest.java`** (단위)
 - 정상 입력 → Prompt의 user message 텍스트가 명세 4-블록 구조 + 변수 치환 정확
 - summaries empty / timeSeries empty / target null → AiAnalysisException(INVALID_REQUEST)
 - timeSeriesTable: 헤더 1행 + 데이터 행 수 일치, 정렬(timestamp 오름차순) 검증
 
-**`pyshia/src/test/java/com/example/pyshia/ai/service/MetricAnalysisServiceTest.java`** (단위)
+**`pythia/src/test/java/com/example/pythia/ai/service/MetricAnalysisServiceTest.java`** (단위)
 - `ChatClient`, `MetricAnalysisPromptFactory` mock
 - 정상: `chatClient.prompt(any).call().content()` stub → 반환값 확인
 - mock fluent chain은 Mockito `RETURNS_DEEP_STUBS` 또는 명시 stub
 - 응답 null/blank → AiAnalysisException(EMPTY_RESPONSE)
 - ChatClient call 단계에서 RuntimeException → AiAnalysisException(LLM_CALL_FAILURE) + cause 보존
 
-> `ChatClientConfig`는 빈 등록만 하므로 별도 테스트 X. 컨텍스트 로딩은 `PyshiaApplicationTests`로 자연 검증.
+> `ChatClientConfig`는 빈 등록만 하므로 별도 테스트 X. 컨텍스트 로딩은 `PythiaApplicationTests`로 자연 검증.
 
 ### 수정하지 않는 파일 (제약/안전)
 
 - `kafka/**` — 본 task는 분석 능력만 추가. consumer hook 통합은 후속
 - `email/**` — 무관
 - `metric/**`, `alert/**` — 무관
-- `PyshiaApplication.java` — `@ConfigurationPropertiesScan` 추가 불필요 (별도 ConfigurationProperties 신설 없음)
+- `PythiaApplication.java` — `@ConfigurationPropertiesScan` 추가 불필요 (별도 ConfigurationProperties 신설 없음)
 - 기존 `application.yml` 키 — `spring.ai.*`만 추가, 다른 키 변경 없음
 
 ---
@@ -274,11 +274,11 @@ MetricAnalysisService.analyze(request)
 ### 본 task 자체의 검증
 
 **자동:**
-- `./gradlew :pyshia:test` BUILD SUCCESSFUL
+- `./gradlew :pythia:test` BUILD SUCCESSFUL
   - `MetricAnalysisPromptFactoryTest` 케이스 전부 통과
   - `MetricAnalysisServiceTest` 케이스 전부 통과
-- `./gradlew :pyshia:build` BUILD SUCCESSFUL — Spring AI 의존 추가로 컴파일/컨텍스트 로딩 깨지지 않는지 검증
-- 기존 `PyshiaApplicationTests` 컨텍스트 로딩 통과
+- `./gradlew :pythia:build` BUILD SUCCESSFUL — Spring AI 의존 추가로 컴파일/컨텍스트 로딩 깨지지 않는지 검증
+- 기존 `PythiaApplicationTests` 컨텍스트 로딩 통과
   - 단, 테스트 환경에 `OPENAI_API_KEY` placeholder가 빠지면 ApplicationContext 로딩 실패 — 검증 시 `OPENAI_API_KEY=test-dummy` 환경 변수 또는 `src/test/resources/application.yml`에 `spring.ai.openai.api-key: test-dummy` 설정 (실제 호출 안 일어나므로 dummy 값 OK)
 
 **프롬프트 형태 검증 (PromptFactoryTest 내부):**
@@ -289,7 +289,7 @@ MetricAnalysisService.analyze(request)
   - 4-항목 분석 요청 문장 그대로 포함
 
 ### 수동 통합 검증 (선택, 본 task 범위 내 권장 — 성공 기준 "정상적으로 LLM과 연동 가능")
-- 실제 OpenAI API key를 환경 변수로 설정 → Pyshia 부팅 → 일회성 Runner / `@PostConstruct` 임시 호출로 sample MetricAnalysisRequest 작성 → `MetricAnalysisService.analyze` 호출 → 콘솔에 LLM 응답 출력 확인
+- 실제 OpenAI API key를 환경 변수로 설정 → Pythia 부팅 → 일회성 Runner / `@PostConstruct` 임시 호출로 sample MetricAnalysisRequest 작성 → `MetricAnalysisService.analyze` 호출 → 콘솔에 LLM 응답 출력 확인
 - 또는 IntegrationTest 한 개를 `@Tag("integration")` 으로 격리하고 `OPENAI_API_KEY` 있을 때만 실행 (`@EnabledIfEnvironmentVariable(named = "OPENAI_API_KEY", matches = ".+")`)
 
 > 통합 테스트의 자동화 정착(별도 mock LLM 서버 / WireMock + OpenAI HTTP fixture)은 후속 task. 본 task는 mock 단위 테스트 + 선택적 수동 검증으로 갈음.
@@ -320,29 +320,29 @@ MetricAnalysisService.analyze(request)
 ## 핵심 파일 경로
 
 신규/수정 (절대 경로):
-- `C:\side_project\pyshia\build.gradle` — Spring AI BOM(**2.0.0-M6**) + OpenAI starter 의존 + Spring milestone repository 추가
-- `C:\side_project\pyshia\src\main\resources\application.yml` — `spring.ai.openai.*` 키 추가
-- `C:\side_project\pyshia\src\main\resources\prompts\metric-analysis.st` — 신규 (프롬프트 템플릿)
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\ai\config\ChatClientConfig.java` — 신규 (`@Configuration`, ChatClient 빈)
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\ai\dto\MetricAnalysisRequest.java` — 신규 (record)
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\ai\dto\AnalysisTarget.java` — 신규 (record)
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\ai\dto\MetricSummary.java` — 신규 (record)
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\ai\dto\SummaryAggregation.java` — 신규 (enum)
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\ai\dto\TimeSeriesPoint.java` — 신규 (record)
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\ai\prompt\MetricAnalysisPromptFactory.java` — 신규 (`@Component`)
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\ai\service\MetricAnalysisService.java` — 신규 (`@Service`)
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\ai\exception\AiAnalysisException.java` — 신규 (`extends CustomException`)
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\ai\exception\AiErrorCode.java` — 신규 (enum)
-- `C:\side_project\pyshia\src\test\java\com\example\pyshia\ai\prompt\MetricAnalysisPromptFactoryTest.java` — 신규
-- `C:\side_project\pyshia\src\test\java\com\example\pyshia\ai\service\MetricAnalysisServiceTest.java` — 신규
-- `C:\side_project\pyshia\src\test\resources\application-test.yml` — 테스트 컨텍스트용 `spring.ai.openai.api-key: test-dummy` 오버라이드 (Round 1에서 Spring AI 1.1.6 호환 회피용으로 추가했던 OpenAI 자동구성 exclude는 **제거** — 2.0.0-M6에서 정상 부팅됨)
+- `C:\side_project\pythia\build.gradle` — Spring AI BOM(**2.0.0-M6**) + OpenAI starter 의존 + Spring milestone repository 추가
+- `C:\side_project\pythia\src\main\resources\application.yml` — `spring.ai.openai.*` 키 추가
+- `C:\side_project\pythia\src\main\resources\prompts\metric-analysis.st` — 신규 (프롬프트 템플릿)
+- `C:\side_project\pythia\src\main\java\com\example\pythia\ai\config\ChatClientConfig.java` — 신규 (`@Configuration`, ChatClient 빈)
+- `C:\side_project\pythia\src\main\java\com\example\pythia\ai\dto\MetricAnalysisRequest.java` — 신규 (record)
+- `C:\side_project\pythia\src\main\java\com\example\pythia\ai\dto\AnalysisTarget.java` — 신규 (record)
+- `C:\side_project\pythia\src\main\java\com\example\pythia\ai\dto\MetricSummary.java` — 신규 (record)
+- `C:\side_project\pythia\src\main\java\com\example\pythia\ai\dto\SummaryAggregation.java` — 신규 (enum)
+- `C:\side_project\pythia\src\main\java\com\example\pythia\ai\dto\TimeSeriesPoint.java` — 신규 (record)
+- `C:\side_project\pythia\src\main\java\com\example\pythia\ai\prompt\MetricAnalysisPromptFactory.java` — 신규 (`@Component`)
+- `C:\side_project\pythia\src\main\java\com\example\pythia\ai\service\MetricAnalysisService.java` — 신규 (`@Service`)
+- `C:\side_project\pythia\src\main\java\com\example\pythia\ai\exception\AiAnalysisException.java` — 신규 (`extends CustomException`)
+- `C:\side_project\pythia\src\main\java\com\example\pythia\ai\exception\AiErrorCode.java` — 신규 (enum)
+- `C:\side_project\pythia\src\test\java\com\example\pythia\ai\prompt\MetricAnalysisPromptFactoryTest.java` — 신규
+- `C:\side_project\pythia\src\test\java\com\example\pythia\ai\service\MetricAnalysisServiceTest.java` — 신규
+- `C:\side_project\pythia\src\test\resources\application-test.yml` — 테스트 컨텍스트용 `spring.ai.openai.api-key: test-dummy` 오버라이드 (Round 1에서 Spring AI 1.1.6 호환 회피용으로 추가했던 OpenAI 자동구성 exclude는 **제거** — 2.0.0-M6에서 정상 부팅됨)
 
 참조 (수정 없음):
-- `C:\side_project\pyshia\CLAUDE.md` — 패키지/예외/테스트 규약
+- `C:\side_project\pythia\CLAUDE.md` — 패키지/예외/테스트 규약
 - `C:\side_project\docs\architecture.md` — Pythia LLM Analyzer 모듈 위치
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\common\exception\CustomException.java` — 예외 부모(재사용)
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\common\exception\ErrorCode.java` — 인터페이스(재사용)
-- `C:\side_project\pyshia\src\main\java\com\example\pyshia\email\EmailService.java` — 동기 Service + 예외 변환 패턴 원본
+- `C:\side_project\pythia\src\main\java\com\example\pythia\common\exception\CustomException.java` — 예외 부모(재사용)
+- `C:\side_project\pythia\src\main\java\com\example\pythia\common\exception\ErrorCode.java` — 인터페이스(재사용)
+- `C:\side_project\pythia\src\main\java\com\example\pythia\email\EmailService.java` — 동기 Service + 예외 변환 패턴 원본
 
 ---
 

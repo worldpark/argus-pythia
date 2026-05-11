@@ -1,14 +1,14 @@
 # 017. 메트릭 값 RDB에 저장
 
 ## Target
-pyshia
+pythia
 
 ## 1. 목표 (Goal)
-- pyshia 프로젝트에 Kafka `jvm.metrics.raw`, `http.metrics.raw`, `hikari.metrics.raw` topic으로 부터 받은 메시지 내용을 RDB에 저장
+- pythia 프로젝트에 Kafka `jvm.metrics.raw`, `http.metrics.raw`, `hikari.metrics.raw` topic으로 부터 받은 메시지 내용을 RDB에 저장
 - RDB는 PostgreSQL 사용
 
 ## 2. 입력 (Input)
-- 메시지의 data는 `com.example.pyshia.kafka.dto.jvm.JvmMetricSnapshotDto`, `com.example.pyshia.kafka.dto.http.HttpMetricSnapshotDto`, `com.example.pyshia.kafka.dto.hikari.HikariMetricSnapshotDto` 이며, topic 명은 각각 `jvm.metrics.raw` `http.metrics.raw`, `hikari.metrics.raw` 이다.
+- 메시지의 data는 `com.example.pythia.kafka.dto.jvm.JvmMetricSnapshotDto`, `com.example.pythia.kafka.dto.http.HttpMetricSnapshotDto`, `com.example.pythia.kafka.dto.hikari.HikariMetricSnapshotDto` 이며, topic 명은 각각 `jvm.metrics.raw` `http.metrics.raw`, `hikari.metrics.raw` 이다.
   
 ## 3. 제약 (Constraints)
 * Controller/API 구현 제외
