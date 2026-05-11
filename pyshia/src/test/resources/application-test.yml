@@ -14,3 +14,10 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
+  ai:
+    openai:
+      api-key: test-dummy
+      chat:
+        options:
+          model: gpt-4.1-mini
+          temperature: 0.2
