@@ -44,7 +44,7 @@ Any Spring Boot Apps              수집·저장              시각화
                   MetricStore                 ThresholdEvaluator
                 (PostgreSQL 적재)           (임계값 위반 판정)
                        │                            │
-                       │ 최근 10분 조회            │
+                       │ 최근 N분 조회            │
                        └──────┬─────────────────────┘
                               ▼
                   MetricAnalysisRequestAssembler
