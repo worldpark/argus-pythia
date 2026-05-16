@@ -44,7 +44,7 @@ class AlertMessageFormatterTest {
   void body_현재값_임계값_포함() {
     ViolationKey key = new ViolationKey(MetricKind.JVM_CPU, "argus", "localhost:8080", null);
     String body = formatter.body(MetricKind.JVM_CPU, Severity.CRITICAL, key,
-        BigDecimal.valueOf(92), BigDecimal.valueOf(85), 3);
+        BigDecimal.valueOf(92), BigDecimal.valueOf(85), 3, null);
     assertThat(body).contains("92").contains("85");
   }
 
@@ -53,7 +53,7 @@ class AlertMessageFormatterTest {
   void body_CPU_단위_퍼센트_포함() {
     ViolationKey key = new ViolationKey(MetricKind.JVM_CPU, "argus", "localhost:8080", null);
     String body = formatter.body(MetricKind.JVM_CPU, Severity.CRITICAL, key,
-        BigDecimal.valueOf(92), BigDecimal.valueOf(85), 3);
+        BigDecimal.valueOf(92), BigDecimal.valueOf(85), 3, null);
     assertThat(body).contains("%");
   }
 
@@ -62,7 +62,7 @@ class AlertMessageFormatterTest {
   void body_GC_PAUSE_단위_초_포함() {
     ViolationKey key = new ViolationKey(MetricKind.JVM_GC_PAUSE, "argus", "localhost:8080", null);
     String body = formatter.body(MetricKind.JVM_GC_PAUSE, Severity.WARNING, key,
-        BigDecimal.valueOf(0.3), BigDecimal.valueOf(0.2), 1);
+        BigDecimal.valueOf(0.3), BigDecimal.valueOf(0.2), 1, null);
     assertThat(body).contains("초");
   }
 
@@ -71,7 +71,7 @@ class AlertMessageFormatterTest {
   void sub_null이면_body에_대상_미포함() {
     ViolationKey key = new ViolationKey(MetricKind.JVM_CPU, "argus", "localhost:8080", null);
     String body = formatter.body(MetricKind.JVM_CPU, Severity.CRITICAL, key,
-        BigDecimal.valueOf(92), BigDecimal.valueOf(85), 3);
+        BigDecimal.valueOf(92), BigDecimal.valueOf(85), 3, null);
     assertThat(body).doesNotContain("대상:");
   }
 
@@ -80,7 +80,34 @@ class AlertMessageFormatterTest {
   void sub_있으면_body에_대상_포함() {
     ViolationKey key = new ViolationKey(MetricKind.HTTP_P99, "argus", "localhost:8080", "/api/orders");
     String body = formatter.body(MetricKind.HTTP_P99, Severity.WARNING, key,
-        BigDecimal.valueOf(1.5), BigDecimal.valueOf(1.0), 2);
+        BigDecimal.valueOf(1.5), BigDecimal.valueOf(1.0), 2, null);
     assertThat(body).contains("대상:").contains("/api/orders");
+  }
+
+  @Test
+  @DisplayName("analysis가 null이면 LLM 분석 섹션이 본문에 포함되지 않는다")
+  void analysis_null이면_LLM_분석_섹션_미포함() {
+    ViolationKey key = new ViolationKey(MetricKind.JVM_CPU, "argus", "localhost:8080", null);
+    String body = formatter.body(MetricKind.JVM_CPU, Severity.CRITICAL, key,
+        BigDecimal.valueOf(92), BigDecimal.valueOf(85), 3, null);
+    assertThat(body).doesNotContain("## LLM 분석");
+  }
+
+  @Test
+  @DisplayName("analysis가 blank이면 LLM 분석 섹션이 본문에 포함되지 않는다")
+  void analysis_blank이면_LLM_분석_섹션_미포함() {
+    ViolationKey key = new ViolationKey(MetricKind.JVM_CPU, "argus", "localhost:8080", null);
+    String body = formatter.body(MetricKind.JVM_CPU, Severity.CRITICAL, key,
+        BigDecimal.valueOf(92), BigDecimal.valueOf(85), 3, "   ");
+    assertThat(body).doesNotContain("## LLM 분석");
+  }
+
+  @Test
+  @DisplayName("analysis가 있으면 LLM 분석 섹션과 본문이 포함된다")
+  void analysis_있으면_LLM_분석_섹션_포함() {
+    ViolationKey key = new ViolationKey(MetricKind.JVM_CPU, "argus", "localhost:8080", null);
+    String body = formatter.body(MetricKind.JVM_CPU, Severity.CRITICAL, key,
+        BigDecimal.valueOf(92), BigDecimal.valueOf(85), 3, "분석결과 본문");
+    assertThat(body).contains("## LLM 분석").contains("분석결과 본문");
   }
 }

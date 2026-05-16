@@ -15,7 +15,7 @@ public class AlertMessageFormatter {
   }
 
   public String body(MetricKind kind, Severity severity, ViolationKey key,
-      BigDecimal value, BigDecimal threshold, int consecutive) {
+      BigDecimal value, BigDecimal threshold, int consecutive, String analysis) {
     StringBuilder sb = new StringBuilder();
     sb.append("임계값 위반이 감지되었습니다.\n\n");
     sb.append("메트릭: ").append(kind.getDisplayName()).append("\n");
@@ -28,6 +28,9 @@ public class AlertMessageFormatter {
     sb.append("현재값: ").append(value).append(" ").append(kind.getUnit()).append("\n");
     sb.append("임계값: ").append(threshold).append(" ").append(kind.getUnit()).append("\n");
     sb.append("연속 위반: ").append(consecutive).append("회\n");
+    if (analysis != null && !analysis.isBlank()) {
+      sb.append("\n## LLM 분석\n").append(analysis).append("\n");
+    }
     return sb.toString();
   }
 }

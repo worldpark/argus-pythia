@@ -1,0 +1,26 @@
+# Build outputs
+build/
+.gradle/
+out/
+bin/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.settings/
+.classpath
+.project
+.springBeans
+.sts4-cache
+
+# VCS
+.git
+.gitignore
+.gitattributes
+
+# Docs / misc
+HELP.md
+*.md
