@@ -27,32 +27,39 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class MetricAnalysisRequestAssembler {
 
-  private static final Duration WINDOW = Duration.ofMinutes(10);
   private static final int VALUE_SCALE = 6;
 
   private final JvmMetricSnapshotRepository jvmRepository;
   private final HttpMetricSnapshotRepository httpRepository;
   private final HikariMetricSnapshotRepository hikariRepository;
+  private final Duration analysisWindow;
 
   public MetricAnalysisRequestAssembler(
       JvmMetricSnapshotRepository jvmRepository,
       HttpMetricSnapshotRepository httpRepository,
-      HikariMetricSnapshotRepository hikariRepository) {
+      HikariMetricSnapshotRepository hikariRepository,
+      @Value("${pythia.alert.analysis-window:PT10M}") Duration analysisWindow) {
+    if (analysisWindow == null || analysisWindow.isZero() || analysisWindow.isNegative()) {
+      throw new IllegalArgumentException(
+          "pythia.alert.analysis-window must be a positive duration, got " + analysisWindow);
+    }
     this.jvmRepository = jvmRepository;
     this.httpRepository = httpRepository;
     this.hikariRepository = hikariRepository;
+    this.analysisWindow = analysisWindow;
   }
 
   @Transactional(readOnly = true)
   public MetricAnalysisRequest assemble(MetricKind kind, ViolationKey key) {
     OffsetDateTime to = OffsetDateTime.now();
-    OffsetDateTime from = to.minus(WINDOW);
+    OffsetDateTime from = to.minus(analysisWindow);
 
     List<TimeSeriesPoint> points = switch (kind) {
       case JVM_CPU,
@@ -86,7 +93,7 @@ public class MetricAnalysisRequestAssembler {
         new MetricSummary(kind.name(), SummaryAggregation.AVG, avg, kind.getUnit()),
         new MetricSummary(kind.name(), SummaryAggregation.MAX, max, kind.getUnit()));
 
-    AnalysisTarget target = new AnalysisTarget(key.application(), key.instance(), WINDOW);
+    AnalysisTarget target = new AnalysisTarget(key.application(), key.instance(), analysisWindow);
     return new MetricAnalysisRequest(target, summaries, points);
   }
 

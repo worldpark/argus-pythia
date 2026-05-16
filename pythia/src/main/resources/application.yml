@@ -53,6 +53,8 @@ pythia:
     operator-recipients:
       - ${MAIL_USERNAME}
 #      - ops@example.com
+  alert:
+    analysis-window: 10m
   threshold:
     jvm:
       cpu-usage-percent:

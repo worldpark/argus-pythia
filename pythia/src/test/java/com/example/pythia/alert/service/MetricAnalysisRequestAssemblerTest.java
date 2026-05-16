@@ -55,7 +55,8 @@ class MetricAnalysisRequestAssemblerTest {
 
   @BeforeEach
   void setUp() {
-    assembler = new MetricAnalysisRequestAssembler(jvmRepository, httpRepository, hikariRepository);
+    assembler = new MetricAnalysisRequestAssembler(
+        jvmRepository, httpRepository, hikariRepository, Duration.ofMinutes(10));
     jvmKey = new ViolationKey(MetricKind.JVM_CPU, "argus", "localhost:8080", null);
     httpKey = new ViolationKey(MetricKind.HTTP_P99, "argus", "localhost:8080", "/api/orders");
     hikariKey = new ViolationKey(MetricKind.HIKARI_USAGE_RATIO, "argus", "localhost:8080", "main-pool");
@@ -330,5 +331,37 @@ class MetricAnalysisRequestAssemblerTest {
     MetricAnalysisPromptFactory promptFactory =
         new MetricAnalysisPromptFactory(new ClassPathResource("prompts/metric-analysis.st"));
     assertThatNoException().isThrownBy(() -> promptFactory.build(req));
+  }
+
+  @Test
+  @DisplayName("주입된 analysisWindow가 AnalysisTarget.range로 그대로 사용된다")
+  void analysisWindow가_AnalysisTarget_range에_반영된다() {
+    Duration customWindow = Duration.ofMinutes(30);
+    MetricAnalysisRequestAssembler customAssembler = new MetricAnalysisRequestAssembler(
+        jvmRepository, httpRepository, hikariRepository, customWindow);
+
+    OffsetDateTime base = OffsetDateTime.now();
+    when(jvmRepository.findByApplicationAndInstanceAndCollectedAtBetweenOrderByCollectedAtAsc(
+        anyString(), anyString(), any(), any()))
+        .thenReturn(List.of(
+            jvmRow(base, new BigDecimal("50"), null, null, null, null, null, null, null)));
+
+    MetricAnalysisRequest req = customAssembler.assemble(MetricKind.JVM_CPU, jvmKey);
+
+    assertThat(req.target().range()).isEqualTo(customWindow);
+  }
+
+  @Test
+  @DisplayName("analysisWindow가 null/zero/negative이면 IllegalArgumentException")
+  void analysisWindow_invalid_값이면_생성자에서_예외() {
+    assertThatThrownBy(() -> new MetricAnalysisRequestAssembler(
+        jvmRepository, httpRepository, hikariRepository, null))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new MetricAnalysisRequestAssembler(
+        jvmRepository, httpRepository, hikariRepository, Duration.ZERO))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new MetricAnalysisRequestAssembler(
+        jvmRepository, httpRepository, hikariRepository, Duration.ofMinutes(-5)))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }
