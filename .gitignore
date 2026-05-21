@@ -14,7 +14,7 @@ hs_err_pid*
 .idea/
 *.iml
 .vscode/
-.claude/
+#.claude/
 
 # OS
 .DS_Store
