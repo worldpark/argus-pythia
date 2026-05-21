@@ -54,10 +54,7 @@
 - messaging (Kafka)
 
 ## AI 작업 규칙
-- 하나의 Task는 하나의 기능만 구현
-- 수정 범위를 명확히 제한
-- 기존 코드 스타일 유지
-- 테스트 없이 기능 추가 금지
+- agents 규칙 문서 : docs/agent-rules/*.md
   
 ## Kafka 규칙
 - Kafka 메시지 직렬화는 JsonSerializer 대신 JacksonJsonSerializer를 사용한다

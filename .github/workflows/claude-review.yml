@@ -1,0 +1,34 @@
+name: Claude Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Use the reviewer agent.
+
+            현재 PR의 변경사항을 리뷰하라.
+            코드는 수정하지 마라.
+
+            다음 관점으로 PR에 리뷰 댓글을 작성하라:
+            - 요구사항 충족 여부
+            - 버그 가능성
+            - 보안 문제
+            - 테스트 부족
+            - 과도한 변경 여부

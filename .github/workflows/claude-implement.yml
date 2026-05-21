@@ -1,0 +1,37 @@
+name: Claude Implement
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  implement:
+    if: |
+      github.event.issue.pull_request == null &&
+      contains(github.event.comment.body, '@claude implement')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Use the implementor agent.
+
+            현재 Issue와 이전 plan 댓글을 참고해서 구현하라.
+
+            요구사항:
+            - 새 브랜치를 생성하라.
+            - 최소 범위로 코드를 수정하라.
+            - 테스트 가능하면 실행하라.
+            - 완료 후 PR을 생성하라.
+            - PR 본문에 구현 요약, 변경 파일, 테스트 결과를 작성하라.
