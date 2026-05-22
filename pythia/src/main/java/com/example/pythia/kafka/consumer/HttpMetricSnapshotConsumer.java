@@ -20,7 +20,8 @@ public class HttpMetricSnapshotConsumer {
 
   @KafkaListener(
       topics = "${pythia.kafka.topic.http-metrics-raw}",
-      containerFactory = "httpKafkaListenerContainerFactory")
+      containerFactory = "httpKafkaListenerContainerFactory",
+      autoStartup = "${pythia.kafka.listener.auto-startup:true}")
   public void consume(
       @Payload HttpMetricSnapshotDto snapshot,
       @Header(KafkaHeaders.RECEIVED_KEY) String key,

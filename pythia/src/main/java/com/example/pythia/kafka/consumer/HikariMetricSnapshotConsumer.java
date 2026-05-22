@@ -20,7 +20,8 @@ public class HikariMetricSnapshotConsumer {
 
   @KafkaListener(
       topics = "${pythia.kafka.topic.hikari-metrics-raw}",
-      containerFactory = "hikariKafkaListenerContainerFactory")
+      containerFactory = "hikariKafkaListenerContainerFactory",
+      autoStartup = "${pythia.kafka.listener.auto-startup:true}")
   public void consume(
       @Payload HikariMetricSnapshotDto snapshot,
       @Header(KafkaHeaders.RECEIVED_KEY) String key,

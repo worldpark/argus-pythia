@@ -1,7 +1,7 @@
 # 프로젝트 컨텍스트
 
 ## 기술 스택
-- Backend: Java 21, Spring Boot 3.x, Spring Data JPA, Spring Security
+- Backend: Java 21, Spring Boot 4.0.6, Spring Data JPA, Spring Security, Spring AI 2.0.0-M6
 - DB: PostgreSQL (개발: H2)
 - 빌드: Gradle
 - 테스트: JUnit 5 + Mockito (백엔드)
@@ -26,14 +26,14 @@
 ## 테스트 규칙
 - 서비스 레이어: 단위 테스트 필수 (Mockito)
 - 컨트롤러: MockMvc 통합 테스트
-  
+
 ## 설계 문서 위치
 - 전체 아키텍처: docs/architecture.md
 - 업무 문서 : docs/tasks/*.md
 
 ## 작업 규칙
 - 설계와 다르게 구현할 경우 이유를 주석으로 명시
-  
+
 ## 금지 규칙
 - Controller에서 비즈니스 로직 작성 금지
 - Controller 와 ServiceResponse에서는 Repository 직접 호출 금지 (Service 통해서만)
@@ -54,11 +54,8 @@
 - messaging (Kafka)
 
 ## AI 작업 규칙
-- 하나의 Task는 하나의 기능만 구현
-- 수정 범위를 명확히 제한
-- 기존 코드 스타일 유지
-- 테스트 없이 기능 추가 금지
-  
+- agents 규칙 문서 : docs/agent-rules/*.md
+
 ## Kafka 규칙
 - Kafka 메시지 직렬화는 JsonSerializer 대신 JacksonJsonSerializer를 사용한다
 - Spring Boot 4 기준 JsonSerializer는 deprecated 상태이므로 사용 금지

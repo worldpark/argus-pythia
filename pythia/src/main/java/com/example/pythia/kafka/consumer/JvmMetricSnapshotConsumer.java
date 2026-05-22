@@ -20,7 +20,8 @@ public class JvmMetricSnapshotConsumer {
 
   @KafkaListener(
       topics = "${pythia.kafka.topic.jvm-metrics-raw}",
-      containerFactory = "jvmKafkaListenerContainerFactory")
+      containerFactory = "jvmKafkaListenerContainerFactory",
+      autoStartup = "${pythia.kafka.listener.auto-startup:true}")
   public void consume(
       @Payload JvmMetricSnapshotDto snapshot,
       @Header(KafkaHeaders.RECEIVED_KEY) String key,

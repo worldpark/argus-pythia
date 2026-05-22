@@ -1,7 +1,7 @@
 # 프로젝트 컨텍스트
 
 ## 기술 스택
-- Backend: Java 17, Spring Boot 4.0.6, Spring Data JPA, Spring Security
+- Backend: Java 21, Spring Boot 4.0.6, Spring Data JPA, Spring Security
 - DB: PostgreSQL (개발: H2)
 - 빌드: Gradle
 - 테스트: JUnit 5 + Mockito (백엔드)

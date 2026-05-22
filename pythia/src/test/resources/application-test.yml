@@ -21,3 +21,8 @@ spring:
         options:
           model: gpt-4.1-mini
           temperature: 0.2
+
+pythia:
+  kafka:
+    listener:
+      auto-startup: false
