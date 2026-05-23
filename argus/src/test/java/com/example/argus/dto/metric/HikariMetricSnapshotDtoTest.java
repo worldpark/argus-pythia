@@ -6,27 +6,23 @@ import com.example.argus.dto.metric.hikari.HikariActiveDto;
 import com.example.argus.dto.metric.hikari.HikariMetricSnapshotDto;
 import com.example.argus.dto.metric.hikari.HikariPendingDto;
 import com.example.argus.dto.metric.hikari.PoolMetricPointDto;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 class HikariMetricSnapshotDtoTest {
 
-  private final ObjectMapper mapper =
-      new ObjectMapper()
-          .registerModule(new JavaTimeModule())
-          .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+  private final ObjectMapper mapper = JsonMapper.builder().build();
 
   @Test
-  void serialize_allSuccess_containsAllTopLevelFields() throws JsonProcessingException {
+  void serialize_allSuccess_containsAllTopLevelFields() throws JacksonException {
     Instant now = Instant.ofEpochSecond(1714000000L);
     OffsetDateTime measuredAt = OffsetDateTime.ofInstant(now, ZoneOffset.ofHours(9));
     OffsetDateTime collectedAt = OffsetDateTime.ofInstant(now, ZoneOffset.ofHours(9));
@@ -54,7 +50,7 @@ class HikariMetricSnapshotDtoTest {
   }
 
   @Test
-  void serialize_partialSnapshot_failedFieldHasEmptyPoints() throws JsonProcessingException {
+  void serialize_partialSnapshot_failedFieldHasEmptyPoints() throws JacksonException {
     Instant now = Instant.ofEpochSecond(1714000000L);
     OffsetDateTime measuredAt = OffsetDateTime.ofInstant(now, ZoneOffset.ofHours(9));
     OffsetDateTime collectedAt = OffsetDateTime.ofInstant(now, ZoneOffset.ofHours(9));

@@ -3,26 +3,22 @@ package com.example.argus.dto.metric;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.argus.dto.metric.jvm.*;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 class JvmMetricSnapshotDtoTest {
 
-  private final ObjectMapper mapper =
-      new ObjectMapper()
-          .registerModule(new JavaTimeModule())
-          .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+  private final ObjectMapper mapper = JsonMapper.builder().build();
 
   @Test
-  void serialize_allSuccess_containsAllTopLevelFields() throws JsonProcessingException {
+  void serialize_allSuccess_containsAllTopLevelFields() throws JacksonException {
     Instant now = Instant.ofEpochSecond(1714000000L);
     OffsetDateTime measuredAt = OffsetDateTime.ofInstant(now, ZoneOffset.ofHours(9));
     OffsetDateTime collectedAt = OffsetDateTime.ofInstant(now, ZoneOffset.ofHours(9));
@@ -49,7 +45,7 @@ class JvmMetricSnapshotDtoTest {
   }
 
   @Test
-  void serialize_metricStatusSerializedAsString() throws JsonProcessingException {
+  void serialize_metricStatusSerializedAsString() throws JacksonException {
     CpuUsageDto cpu = CpuUsageDto.queryFailed("network error");
 
     JsonNode node = mapper.readTree(mapper.writeValueAsString(cpu));
@@ -59,7 +55,7 @@ class JvmMetricSnapshotDtoTest {
   }
 
   @Test
-  void serialize_failedSnapshot_nullValueFieldsPresent() throws JsonProcessingException {
+  void serialize_failedSnapshot_nullValueFieldsPresent() throws JacksonException {
     Instant now = Instant.ofEpochSecond(1714000000L);
     OffsetDateTime collectedAt = OffsetDateTime.ofInstant(now, ZoneOffset.ofHours(9));
     JvmMetricSnapshotDto snapshot = new JvmMetricSnapshotDto(
@@ -90,7 +86,7 @@ class JvmMetricSnapshotDtoTest {
   }
 
   @Test
-  void serialize_gcPartial_countIsNull() throws JsonProcessingException {
+  void serialize_gcPartial_countIsNull() throws JacksonException {
     OffsetDateTime now = OffsetDateTime.ofInstant(Instant.ofEpochSecond(1714000000L), ZoneOffset.ofHours(9));
     GcMetricDto gc = GcMetricDto.partial(new BigDecimal("0.01"), null, now, "GC_COUNT: failed");
 

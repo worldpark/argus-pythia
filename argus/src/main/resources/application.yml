@@ -9,6 +9,11 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
       properties:
         spring.json.add.type.headers: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: ${REDIS_TIMEOUT:2000ms}
 
 prometheus:
   base-url: http://localhost:9090
@@ -19,5 +24,14 @@ argus:
       metrics-raw: jvm.metrics.raw
       http-metrics-raw: http.metrics.raw
       hikari-metrics-raw: hikari.metrics.raw
+  buffer:
+    ttl: PT5M
+    max-size: 5000
+    overflow-policy: DROP_OLDEST
+    drain-batch-size: 50
+    drain-interval-ms: 5000
+    key-prefix: "argus:buffer:"
+  scheduling:
+    enabled: true
 server:
   port: 80

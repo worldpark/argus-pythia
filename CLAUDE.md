@@ -75,6 +75,15 @@
 - Kafka 메시지 직렬화는 `JsonSerializer` 대신 `JacksonJsonSerializer`를 사용한다
 - Spring Boot 4 기준 `JsonSerializer`는 deprecated 상태이므로 사용 금지
 
+## Jackson Notes
+- Spring Boot `4.0.6` 의 `JacksonAutoConfiguration` 은 **Jackson 3.x** (`tools.jackson.databind.ObjectMapper`, 그룹 ID `tools.jackson.core`) 빈을 등록한다. 기존의 `com.fasterxml.jackson.databind.ObjectMapper` (Jackson 2.x) 와는 완전히 다른 클래스이므로 서로 빈 주입이 호환되지 않는다
+- `argus` 는 2026-05-23 기준 Jackson 3 단일화가 완료되었다. `tools.jackson.databind.ObjectMapper`/`JsonMapper` 를 사용하며 `com.fasterxml.jackson.databind.*`, `com.fasterxml.jackson.core.*` 의 직접 사용과 Jackson 2 전용 의존성은 제거되었다
+- `pythia` 는 2026-05-23 기준 별도 수정 없이도 Jackson 3 경로를 사용하고 있다. 확인된 명시적 사용 지점은 Kafka consumer 설정의 `tools.jackson.databind.json.JsonMapper` 이며 `./gradlew test` 통과로 현재 상태를 검증했다
+- Jackson 3 마이그레이션 시 `jackson-annotations` 는 예외다. `@JsonIgnoreProperties` 같은 annotation 은 계속 `com.fasterxml.jackson.annotation.*` 패키지를 사용한다
+- Jackson 3 에서는 `JsonProcessingException` 대신 `tools.jackson.core.JacksonException` 계열을 사용한다
+- Jackson 3 에서는 Java time 지원이 `databind` 에 통합되어 있어 기존 Jackson 2 의 `JavaTimeModule` 수동 등록이 필수가 아니다
+- 만약 새 코드에서 `com.fasterxml.jackson.databind.ObjectMapper` 주입이 다시 필요해진다면 Jackson 2 를 임시 공존시키는 대신 Jackson 3 타입으로 먼저 전환 가능한지 검토한다
+
 ## Redis / Redisson Notes
 - Spring Boot `4.0.6` 환경에서는 `org.redisson:redisson-spring-boot-starter`를 사용하지 않는다. 구형 `org.springframework.boot.autoconfigure.data.redis.RedisProperties` 클래스를 참조하여 애플리케이션 시작 시 실패할 수 있다
 - 이 프로젝트에서는 `org.redisson:redisson`을 사용하고 `RedissonClient`는 설정 클래스에서 명시적으로 등록한다
