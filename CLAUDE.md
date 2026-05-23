@@ -35,6 +35,9 @@
 - 전체 아키텍처: `docs/architecture.md`
 - Task 문서: `docs/tasks/*.md`
 - Plan 문서: `docs/plans/*.md`
+- Plan Fix 문서: `docs/plans/fix-logs/*.md`
+- Full Review Plan 문서: `docs/plans/full-review/*.md`
+- Full Review Plan Fix 문서: `docs/plans/full-review/fix-logs/*.md`
 
 ## 작업 규칙
 - 설계와 다르게 구현할 경우 이유를 주석 또는 작업 문서에 명시

@@ -13,6 +13,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,11 +25,26 @@ import org.springframework.stereotype.Component;
  *
  * <p>입력 검증 → 요약/시계열 텍스트 렌더링 → 외부 템플릿(.st) 변수 치환 순서로 동작한다. 명세 4-블록 구조(분석 대상 / 메트릭
  * 요약 / 시계열 데이터 / 분석 요청)는 외부 템플릿이 보장한다.
+ *
+ * <p>외부 입력(application, instance, metricName, unit)은 {@link #sanitizeForPrompt(String)}로
+ * 프롬프트 인젝션 방어 처리된다. 시스템 생성 값(숫자, 타임스탬프, range)은 미적용.
  */
 @Component
 public class MetricAnalysisPromptFactory {
 
   private static final String TIME_SERIES_HEADER = "timestamp\tmetric\tvalue";
+  private static final int MAX_SANITIZE_LEN = 256;
+
+  // 제어문자 (\r, \n, \t 제외) 제거
+  private static final Pattern CONTROL_CHARS = Pattern.compile("[\\p{Cntrl}&&[^\\t]]");
+  // Markdown 코드 펜스
+  private static final Pattern MARKDOWN_FENCE = Pattern.compile("(?m)^\\s{0,3}(```|~~~).*$");
+  // Markdown 헤딩/수평선
+  private static final Pattern MARKDOWN_HEADING_OR_RULE =
+      Pattern.compile("(?m)^\\s{0,3}(#{1,6}\\s|-{3,}|\\*{3,}|_{3,})");
+  // 프롬프트 인젝션 키워드
+  private static final Pattern INJECTION_KEYWORDS =
+      Pattern.compile("(?i)(ignore\\s+previous|disregard\\s+previous|system\\s*:|assistant\\s*:|user\\s*:)");
 
   private final PromptTemplate promptTemplate;
 
@@ -42,13 +58,45 @@ public class MetricAnalysisPromptFactory {
 
     AnalysisTarget target = request.target();
     Map<String, Object> variables = new HashMap<>();
-    variables.put("application", target.application());
-    variables.put("instance", target.instance());
+    variables.put("application", sanitizeForPrompt(target.application()));
+    variables.put("instance", sanitizeForPrompt(target.instance()));
     variables.put("range", renderRange(target.range()));
     variables.put("metricSummary", renderSummaryBlock(request.summaries()));
     variables.put("timeSeriesTable", renderTimeSeriesTable(request.timeSeries()));
 
     return promptTemplate.create(variables);
+  }
+
+  /**
+   * 외부 입력 문자열에서 프롬프트 인젝션 위협을 제거한다.
+   *
+   * <ul>
+   *   <li>제어문자(\r, \n 포함, \t 제외) → 공백
+   *   <li>Markdown 코드 펜스/헤딩/수평선 → 공백
+   *   <li>인젝션 키워드(ignore previous 등) → [redacted]
+   *   <li>백틱 → 공백
+   *   <li>256자 초과 → 절단
+   * </ul>
+   */
+  private static String sanitizeForPrompt(String input) {
+    if (input == null) {
+      return "";
+    }
+    String value = input;
+    // Markdown 구조 먼저 처리 (줄 단위 패턴이 \n 기반이므로 제어문자 변환 전에 수행)
+    value = MARKDOWN_FENCE.matcher(value).replaceAll(" ");
+    value = MARKDOWN_HEADING_OR_RULE.matcher(value).replaceAll(" ");
+    // 인젝션 키워드
+    value = INJECTION_KEYWORDS.matcher(value).replaceAll("[redacted]");
+    // 제어문자 처리 (\t 유지, \n 포함 나머지 제거 -> 공백으로)
+    value = CONTROL_CHARS.matcher(value).replaceAll(" ");
+    // 백틱
+    value = value.replace("`", " ");
+    value = value.replaceAll("\\s+", " ").trim();
+    if (value.length() > MAX_SANITIZE_LEN) {
+      value = value.substring(0, MAX_SANITIZE_LEN);
+    }
+    return value;
   }
 
   private void validate(MetricAnalysisRequest request) {
@@ -88,13 +136,13 @@ public class MetricAnalysisPromptFactory {
     for (int i = 0; i < summaries.size(); i++) {
       MetricSummary s = summaries.get(i);
       sb.append("- ")
-          .append(s.metricName())
+          .append(sanitizeForPrompt(s.metricName()))
           .append(" (")
           .append(s.aggregation().name().toLowerCase())
           .append("): ")
           .append(s.value() != null ? s.value().toPlainString() : "null");
       if (s.unit() != null && !s.unit().isBlank()) {
-        sb.append(' ').append(s.unit());
+        sb.append(' ').append(sanitizeForPrompt(s.unit()));
       }
       if (i < summaries.size() - 1) {
         sb.append('\n');
@@ -112,7 +160,7 @@ public class MetricAnalysisPromptFactory {
       sb.append('\n')
           .append(p.timestamp())
           .append('\t')
-          .append(p.metricName())
+          .append(sanitizeForPrompt(p.metricName()))
           .append('\t')
           .append(p.value() != null ? p.value().toPlainString() : "null");
     }

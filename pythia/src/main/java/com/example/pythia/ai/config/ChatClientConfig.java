@@ -1,6 +1,7 @@
 package com.example.pythia.ai.config;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,6 +17,7 @@ import org.springframework.context.annotation.Configuration;
  * 의존성으로 보유하지 않는 환경에서는 이 모듈도 로드되지 않아야 한다.
  */
 @Configuration
+@EnableConfigurationProperties(AiAnalysisProperties.class)
 public class ChatClientConfig {
 
   @Bean

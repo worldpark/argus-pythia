@@ -1,6 +1,7 @@
 package com.example.pythia.alert.service;
 
 import com.example.pythia.alert.config.ThresholdProperties;
+import com.example.pythia.alert.exception.ViolationStateException;
 import com.example.pythia.alert.config.ThresholdProperties.Limit;
 import com.example.pythia.alert.domain.MetricKind;
 import com.example.pythia.alert.domain.Severity;
@@ -22,23 +23,18 @@ import com.example.pythia.kafka.dto.jvm.MemoryUsageDto;
 import com.example.pythia.kafka.dto.jvm.ThreadMetricDto;
 import java.math.BigDecimal;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ThresholdEvaluator {
 
   private final ThresholdProperties properties;
   private final ViolationStateStore store;
   private final AlertNotifier notifier;
-
-  public ThresholdEvaluator(ThresholdProperties properties, ViolationStateStore store,
-      AlertNotifier notifier) {
-    this.properties = properties;
-    this.store = store;
-    this.notifier = notifier;
-  }
 
   public void evaluateJvm(JvmMetricSnapshotDto snapshot) {
     String app = snapshot.application();
@@ -162,6 +158,9 @@ public class ThresholdEvaluator {
       } else {
         store.clear(key);
       }
+    } catch (ViolationStateException e) {
+      log.warn("Violation state operation failed (alert may be skipped): kind={} app={} instance={} sub={} code={}",
+          kind, app, instance, sub, e.getErrorCode().code());
     } catch (RuntimeException e) {
       log.error("Unexpected error evaluating {}: app={} instance={} sub={}", kind, app, instance, sub, e);
     }

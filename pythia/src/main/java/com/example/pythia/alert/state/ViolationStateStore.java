@@ -3,13 +3,17 @@ package com.example.pythia.alert.state;
 import com.example.pythia.alert.config.ViolationStateProperties;
 import com.example.pythia.alert.domain.Severity;
 import com.example.pythia.alert.domain.ViolationKey;
+import com.example.pythia.alert.exception.LockAcquisitionRetryException;
 import com.example.pythia.alert.exception.ViolationStateErrorCode;
 import com.example.pythia.alert.exception.ViolationStateException;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryRegistry;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import lombok.RequiredArgsConstructor;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.redisson.client.RedisException;
@@ -20,38 +24,32 @@ import org.springframework.data.redis.serializer.SerializationException;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class ViolationStateStore {
 
   private final StringRedisTemplate redisTemplate;
   private final RedissonClient redissonClient;
   private final ViolationStateProperties properties;
-
-  public ViolationStateStore(
-      StringRedisTemplate redisTemplate,
-      RedissonClient redissonClient,
-      ViolationStateProperties properties) {
-    this.redisTemplate = redisTemplate;
-    this.redissonClient = redissonClient;
-    this.properties = properties;
-  }
+  private final RetryRegistry retryRegistry;
 
   public boolean shouldSend(ViolationKey key, Severity severity, int window) {
     String redisKey = toRedisKey(key);
     String lockKey = toLockKey(key);
-    long waitMs = properties.getLockWait().toMillis();
-    long leaseMs = properties.getLockLease().toMillis();
     Duration ttl = properties.getTtl();
 
-    RLock lock = redissonClient.getLock(lockKey);
-    boolean acquired;
+    RLock lock;
     try {
-      acquired = lock.tryLock(waitMs, leaseMs, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException e) {
+      Retry retry = retryRegistry.retry("violationLock");
+      lock = retry.executeCallable(() -> tryAcquireLock(lockKey));
+    } catch (LockAcquisitionRetryException ex) {
+      throw new ViolationStateException(ViolationStateErrorCode.LOCK_ACQUISITION_FAILED, ex);
+    } catch (InterruptedException ie) {
       Thread.currentThread().interrupt();
-      throw new ViolationStateException(ViolationStateErrorCode.LOCK_INTERRUPTED, e);
-    }
-    if (!acquired) {
-      throw new ViolationStateException(ViolationStateErrorCode.LOCK_ACQUISITION_FAILED);
+      throw new ViolationStateException(ViolationStateErrorCode.LOCK_INTERRUPTED, ie);
+    } catch (ViolationStateException ex) {
+      throw ex;
+    } catch (Exception ex) {
+      throw new ViolationStateException(ViolationStateErrorCode.LOCK_ACQUISITION_FAILED, ex);
     }
 
     try {
@@ -115,6 +113,25 @@ public class ViolationStateStore {
     } catch (DataAccessException e) {
       throw new ViolationStateException(ViolationStateErrorCode.REDIS_ACCESS_FAILED, e);
     }
+  }
+
+  /**
+   * Redisson lock 획득을 시도하는 내부 헬퍼.
+   *
+   * <p>lock 획득 실패(tryLock false) 시 {@link LockAcquisitionRetryException}을 throw 하여
+   * Resilience4j Retry 가 재시도를 수행할 수 있도록 sentinel 예외를 사용한다.
+   * InterruptedException 은 retry-ignore 대상이며 호출자에서 처리한다.
+   */
+  private RLock tryAcquireLock(String lockKey) throws InterruptedException {
+    RLock lock = redissonClient.getLock(lockKey);
+    boolean acquired = lock.tryLock(
+        properties.getLockWait().toMillis(),
+        properties.getLockLease().toMillis(),
+        TimeUnit.MILLISECONDS);
+    if (!acquired) {
+      throw new LockAcquisitionRetryException();
+    }
+    return lock;
   }
 
   private String toRedisKey(ViolationKey key) {

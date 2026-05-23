@@ -7,28 +7,21 @@ import com.example.pythia.alert.domain.ViolationKey;
 import com.example.pythia.email.EmailService;
 import com.example.pythia.email.exception.EmailSendException;
 import java.math.BigDecimal;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.mail.MailException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class AlertNotifier {
 
   private final EmailService emailService;
   private final AlertMessageFormatter formatter;
   private final MetricAnalysisService analysisService;
   private final MetricAnalysisRequestAssembler requestAssembler;
-
-  public AlertNotifier(EmailService emailService,
-      AlertMessageFormatter formatter,
-      MetricAnalysisService analysisService,
-      MetricAnalysisRequestAssembler requestAssembler) {
-    this.emailService = emailService;
-    this.formatter = formatter;
-    this.analysisService = analysisService;
-    this.requestAssembler = requestAssembler;
-  }
 
   @Async
   public void notify(MetricKind kind, Severity severity, ViolationKey key,
@@ -42,6 +35,10 @@ public class AlertNotifier {
           kind, severity, key.application(), key.instance());
     } catch (EmailSendException e) {
       log.error("Failed to send alert: kind={} severity={} app={} instance={} error={}",
+          kind, severity, key.application(), key.instance(), e.getMessage());
+    } catch (MailException e) {
+      // Resilience4j Retry 모두 소진 후 최종 MailException propagate 처리
+      log.error("Email send failed after retries: kind={} severity={} app={} instance={} error={}",
           kind, severity, key.application(), key.instance(), e.getMessage());
     }
   }

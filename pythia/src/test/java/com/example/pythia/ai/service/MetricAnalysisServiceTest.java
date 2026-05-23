@@ -7,6 +7,7 @@ import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.example.pythia.ai.config.AiAnalysisProperties;
 import com.example.pythia.ai.dto.AnalysisTarget;
 import com.example.pythia.ai.dto.MetricAnalysisRequest;
 import com.example.pythia.ai.dto.MetricSummary;
@@ -15,6 +16,9 @@ import com.example.pythia.ai.dto.TimeSeriesPoint;
 import com.example.pythia.ai.exception.AiAnalysisException;
 import com.example.pythia.ai.exception.AiErrorCode;
 import com.example.pythia.ai.prompt.MetricAnalysisPromptFactory;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.retry.RetryConfig;
+import io.github.resilience4j.retry.RetryRegistry;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -35,7 +39,22 @@ class MetricAnalysisServiceTest {
   void setUp() {
     chatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
     promptFactory = mock(MetricAnalysisPromptFactory.class);
-    service = new MetricAnalysisService(chatClient, promptFactory);
+    AiAnalysisProperties props = new AiAnalysisProperties();
+    props.setMaxResponseChars(5000);
+
+    RetryRegistry retryRegistry = RetryRegistry.of(RetryConfig.custom()
+        .maxAttempts(1)
+        .build());
+    retryRegistry.retry("llmAnalysis");
+    CircuitBreakerRegistry circuitBreakerRegistry = CircuitBreakerRegistry.ofDefaults();
+    circuitBreakerRegistry.circuitBreaker("llmAnalysis");
+
+    service = new MetricAnalysisService(
+        chatClient,
+        promptFactory,
+        props,
+        retryRegistry,
+        circuitBreakerRegistry);
   }
 
   private MetricAnalysisRequest sampleRequest() {
@@ -49,7 +68,7 @@ class MetricAnalysisServiceTest {
 
   @Test
   @DisplayName("정상 응답 시 content 문자열을 반환한다")
-  void 정상_응답시_content_문자열을_반환한다() {
+  void returnsContentOnSuccess() {
     Prompt prompt = mock(Prompt.class);
     MetricAnalysisRequest request = sampleRequest();
     when(promptFactory.build(request)).thenReturn(prompt);
@@ -61,8 +80,8 @@ class MetricAnalysisServiceTest {
   }
 
   @Test
-  @DisplayName("응답이 null이면 EMPTY_RESPONSE 예외")
-  void 응답이_null이면_EMPTY_RESPONSE() {
+  @DisplayName("응답이 null 이면 EMPTY_RESPONSE 예외")
+  void throwsEmptyResponseWhenNull() {
     Prompt prompt = mock(Prompt.class);
     MetricAnalysisRequest request = sampleRequest();
     when(promptFactory.build(request)).thenReturn(prompt);
@@ -74,8 +93,8 @@ class MetricAnalysisServiceTest {
   }
 
   @Test
-  @DisplayName("응답이 blank이면 EMPTY_RESPONSE 예외")
-  void 응답이_blank이면_EMPTY_RESPONSE() {
+  @DisplayName("응답이 blank 이면 EMPTY_RESPONSE 예외")
+  void throwsEmptyResponseWhenBlank() {
     Prompt prompt = mock(Prompt.class);
     MetricAnalysisRequest request = sampleRequest();
     when(promptFactory.build(request)).thenReturn(prompt);
@@ -87,8 +106,8 @@ class MetricAnalysisServiceTest {
   }
 
   @Test
-  @DisplayName("ChatClient 호출 중 RuntimeException 발생 시 LLM_CALL_FAILURE로 변환되고 cause 보존")
-  void ChatClient_RuntimeException은_LLM_CALL_FAILURE로_변환된다() {
+  @DisplayName("ChatClient 런타임 예외는 LLM_CALL_FAILURE 로 변환되고 cause 를 유지한다")
+  void wrapsRuntimeException() {
     Prompt prompt = mock(Prompt.class);
     MetricAnalysisRequest request = sampleRequest();
     when(promptFactory.build(request)).thenReturn(prompt);
@@ -102,8 +121,8 @@ class MetricAnalysisServiceTest {
   }
 
   @Test
-  @DisplayName("PromptFactory에서 던진 AiAnalysisException은 그대로 전파된다")
-  void PromptFactory_예외는_그대로_전파된다() {
+  @DisplayName("PromptFactory 예외는 그대로 전파한다")
+  void propagatesPromptFactoryException() {
     MetricAnalysisRequest request = sampleRequest();
     AiAnalysisException original =
         new AiAnalysisException(AiErrorCode.INVALID_REQUEST, "summaries must not be empty");

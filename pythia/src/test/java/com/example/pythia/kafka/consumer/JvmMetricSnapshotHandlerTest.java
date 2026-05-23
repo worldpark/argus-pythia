@@ -3,9 +3,11 @@ package com.example.pythia.kafka.consumer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -43,6 +45,9 @@ class JvmMetricSnapshotHandlerTest {
     @Mock
     private MetricStoreService metricStoreService;
 
+    @Mock
+    private MessageDeduplicator deduplicator;
+
     @InjectMocks
     private JvmMetricSnapshotHandler handler;
 
@@ -56,6 +61,10 @@ class JvmMetricSnapshotHandlerTest {
         listAppender.start();
         logger.addAppender(listAppender);
         logger.setLevel(Level.DEBUG);
+        // 기본적으로 dedup 통과 (처음 처리) - lenient: FAILED 상태 테스트에서 미호출될 수 있음
+        org.mockito.Mockito.lenient()
+            .when(deduplicator.markProcessed(anyString(), anyString(), anyString(), any()))
+            .thenReturn(true);
     }
 
     @AfterEach
@@ -125,6 +134,30 @@ class JvmMetricSnapshotHandlerTest {
         handler.handle(failedSnapshot());
         assertThat(listAppender.list)
             .anyMatch(e -> e.getLevel() == Level.WARN && e.getFormattedMessage().contains("FAILED"));
+    }
+
+    @Test
+    @DisplayName("deduplicator.markProcessed가 false 반환 시 evaluator와 save가 호출되지 않는다 (중복 스킵)")
+    void 중복_메시지_스킵시_evaluator와_save_미호출() {
+        JvmMetricSnapshotDto snapshot = normalSnapshot();
+        when(deduplicator.markProcessed(anyString(), anyString(), anyString(), any())).thenReturn(false);
+
+        handler.handle(snapshot);
+
+        verify(evaluator, never()).evaluateJvm(any());
+        verify(metricStoreService, never()).save(any(JvmMetricSnapshotDto.class));
+    }
+
+    @Test
+    @DisplayName("deduplicator.markProcessed가 true 반환 시 정상 처리된다")
+    void 중복아닌_메시지_정상처리() {
+        JvmMetricSnapshotDto snapshot = normalSnapshot();
+        when(deduplicator.markProcessed(anyString(), anyString(), anyString(), any())).thenReturn(true);
+
+        handler.handle(snapshot);
+
+        verify(evaluator).evaluateJvm(snapshot);
+        verify(metricStoreService).save(snapshot);
     }
 
     private JvmMetricSnapshotDto normalSnapshot() {

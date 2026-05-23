@@ -6,7 +6,8 @@ public enum AiErrorCode implements ErrorCode {
 
   INVALID_REQUEST("AI_001", "Analysis request payload is invalid"),
   LLM_CALL_FAILURE("AI_002", "LLM call failed"),
-  EMPTY_RESPONSE("AI_003", "LLM returned empty response");
+  EMPTY_RESPONSE("AI_003", "LLM returned empty response"),
+  RESPONSE_TOO_LARGE("AI_004", "LLM response exceeds size limit");
 
   private final String code;
   private final String defaultMessage;

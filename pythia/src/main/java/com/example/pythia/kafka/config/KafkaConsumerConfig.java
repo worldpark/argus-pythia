@@ -7,6 +7,8 @@ import tools.jackson.databind.json.JsonMapper;
 import java.util.Map;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.boot.kafka.autoconfigure.KafkaProperties;
+import com.example.pythia.kafka.config.KafkaDedupProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
@@ -19,6 +21,7 @@ import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
 import org.springframework.util.backoff.FixedBackOff;
 
 @Configuration
+@EnableConfigurationProperties(KafkaDedupProperties.class)
 public class KafkaConsumerConfig {
 
   private final KafkaProperties kafkaProperties;

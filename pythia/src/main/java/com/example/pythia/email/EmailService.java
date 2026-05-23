@@ -4,42 +4,40 @@ import com.example.pythia.email.config.EmailProperties;
 import com.example.pythia.email.dto.EmailRequest;
 import com.example.pythia.email.exception.EmailErrorCode;
 import com.example.pythia.email.exception.EmailSendException;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryRegistry;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class EmailService {
 
   private final JavaMailSender mailSender;
   private final EmailProperties emailProperties;
-
-  public EmailService(JavaMailSender mailSender, EmailProperties emailProperties) {
-    this.mailSender = mailSender;
-    this.emailProperties = emailProperties;
-  }
+  private final RetryRegistry retryRegistry;
 
   public void send(EmailRequest request) {
     validateRequest(request);
-    try {
-      SimpleMailMessage message = new SimpleMailMessage();
-      message.setFrom(emailProperties.from());
-      message.setTo(request.to().toArray(String[]::new));
-      message.setSubject(request.subject());
-      message.setText(request.body());
-      mailSender.send(message);
-      log.debug("Email sent: to={} subject={}", request.to(), request.subject());
-    } catch (MailException e) {
-      log.error("SMTP failure: to={} subject={} error={}", request.to(), request.subject(), e.getMessage());
-      throw new EmailSendException(EmailErrorCode.SMTP_FAILURE, e.getMessage(), e);
-    }
+    SimpleMailMessage message = new SimpleMailMessage();
+    message.setFrom(emailProperties.from());
+    message.setTo(request.to().toArray(String[]::new));
+    message.setSubject(request.subject());
+    message.setText(request.body());
+    mailSender.send(message);
+    log.debug("Email sent: to={} subject={}", request.to(), request.subject());
   }
 
   public void sendToOperator(String subject, String body) {
-    send(new EmailRequest(emailProperties.operatorRecipients(), subject, body));
+    Retry retry = retryRegistry.retry("emailSender");
+    Retry.decorateRunnable(
+        retry,
+        () -> send(new EmailRequest(emailProperties.operatorRecipients(), subject, body)))
+        .run();
   }
 
   private void validateRequest(EmailRequest request) {

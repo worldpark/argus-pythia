@@ -38,6 +38,11 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.redisson:redisson:3.39.0'
     implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+    implementation 'org.springframework.ai:spring-ai-retry'  // TransientAiException 명시 의존 (BOM 버전 관리)
+    implementation 'io.github.resilience4j:resilience4j-retry:2.2.0'
+    implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.2.0'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.github.resilience4j:resilience4j-micrometer:2.2.0'
     runtimeOnly 'org.postgresql:postgresql'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

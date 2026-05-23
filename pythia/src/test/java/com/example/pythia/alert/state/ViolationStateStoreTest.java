@@ -21,6 +21,8 @@ import com.example.pythia.alert.domain.Severity;
 import com.example.pythia.alert.domain.ViolationKey;
 import com.example.pythia.alert.exception.ViolationStateErrorCode;
 import com.example.pythia.alert.exception.ViolationStateException;
+import io.github.resilience4j.retry.RetryConfig;
+import io.github.resilience4j.retry.RetryRegistry;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -66,7 +68,12 @@ class ViolationStateStoreTest {
   @BeforeEach
   void setUp() {
     properties = new ViolationStateProperties();
-    store = new ViolationStateStore(redisTemplate, redissonClient, properties);
+    // RetryRegistry: 테스트에서 max-attempts=1로 설정해 즉시 실패하도록 구성 (기존 테스트 유지)
+    RetryRegistry retryRegistry = RetryRegistry.of(
+        RetryConfig.custom()
+            .maxAttempts(1) // 재시도 없이 즉시 LockAcquisitionRetryException 전파
+            .build());
+    store = new ViolationStateStore(redisTemplate, redissonClient, properties, retryRegistry);
     key = new ViolationKey(MetricKind.JVM_CPU, "argus", "localhost:8080", null);
 
     hashOperations = mock(HashOperations.class);
