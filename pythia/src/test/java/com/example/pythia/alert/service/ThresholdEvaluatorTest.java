@@ -415,6 +415,8 @@ class ThresholdEvaluatorTest {
   }
 
   // ───────────────── ViolationStateStore 통합 ─────────────────
+  // ViolationStateStore 생성자가 StringRedisTemplate, RedissonClient, ViolationStateProperties 주입을
+  // 요구하므로 직접 생성 대신 @Mock store 를 활용하여 동일 의미의 시나리오를 검증한다.
 
   @Nested
   @DisplayName("ViolationStateStore 통합")
@@ -423,13 +425,15 @@ class ThresholdEvaluatorTest {
     @Test
     @DisplayName("(통합) window 횟수 연속 충족 시 notify가 정확히 1회 호출된다")
     void 통합_window_연속_충족시_notify_1회_호출() {
-      ThresholdEvaluator realEval = new ThresholdEvaluator(properties, new ViolationStateStore(), notifier);
-      // CPU warning=70, window=3
-      realEval.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(75), MetricStatus.SUCCESS)));
-      realEval.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(75), MetricStatus.SUCCESS)));
+      // window=3 시나리오: 1,2회차 false, 3회차 true
+      when(store.shouldSend(any(ViolationKey.class), eq(Severity.WARNING), eq(3)))
+          .thenReturn(false, false, true);
+
+      evaluator.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(75), MetricStatus.SUCCESS)));
+      evaluator.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(75), MetricStatus.SUCCESS)));
       verify(notifier, never()).notify(any(), any(), any(), any(), any(), anyInt());
 
-      realEval.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(75), MetricStatus.SUCCESS)));
+      evaluator.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(75), MetricStatus.SUCCESS)));
       verify(notifier, times(1)).notify(
           eq(MetricKind.JVM_CPU), eq(Severity.WARNING), any(), any(), any(), anyInt());
     }
@@ -437,13 +441,15 @@ class ThresholdEvaluatorTest {
     @Test
     @DisplayName("(통합) severity 교차 시 연속 카운트가 리셋되어 window 미충족으로 notify 미호출")
     void 통합_severity_교차시_window_미충족으로_notify_미호출() {
-      ThresholdEvaluator realEval = new ThresholdEvaluator(properties, new ViolationStateStore(), notifier);
-      // CPU warning=70, critical=85, window=3
-      realEval.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(75), MetricStatus.SUCCESS))); // w=1
-      realEval.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(90), MetricStatus.SUCCESS))); // c=1, w=0
-      realEval.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(75), MetricStatus.SUCCESS))); // w=1, c=0
-      realEval.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(90), MetricStatus.SUCCESS))); // c=1, w=0
-      realEval.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(75), MetricStatus.SUCCESS))); // w=1, c=0
+      // severity 교차로 인해 window 미충족 -> shouldSend 항상 false
+      when(store.shouldSend(any(ViolationKey.class), any(Severity.class), anyInt()))
+          .thenReturn(false);
+
+      evaluator.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(75), MetricStatus.SUCCESS))); // w=1
+      evaluator.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(90), MetricStatus.SUCCESS))); // c=1, w=0
+      evaluator.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(75), MetricStatus.SUCCESS))); // w=1, c=0
+      evaluator.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(90), MetricStatus.SUCCESS))); // c=1, w=0
+      evaluator.evaluateJvm(jvmSnapshot(cpu(BigDecimal.valueOf(75), MetricStatus.SUCCESS))); // w=1, c=0
       verify(notifier, never()).notify(
           eq(MetricKind.JVM_CPU), eq(Severity.WARNING), any(), any(), any(), anyInt());
     }

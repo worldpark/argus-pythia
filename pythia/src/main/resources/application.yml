@@ -23,6 +23,14 @@ spring:
       group-id: pythia
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3s
+      lettuce:
+        shutdown-timeout: 200ms
   mail:
     host: smtp.gmail.com
     port: 587
@@ -55,6 +63,12 @@ pythia:
 #      - ops@example.com
   alert:
     analysis-window: 10m
+    violation-state:
+      ttl: 1h
+      key-prefix: "pythia:alert:violation:"
+      lock-key-prefix: "pythia:alert:violation:lock:"
+      lock-wait: 200ms
+      lock-lease: 3s
   threshold:
     jvm:
       cpu-usage-percent:

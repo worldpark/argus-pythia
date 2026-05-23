@@ -1,0 +1,28 @@
+services:
+  redis:
+    image: redis:7.4-alpine
+    container_name: jvm-monitoring-redis
+    ports:
+      - "6379:6379"
+    environment:
+      TZ: Asia/Seoul
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - argus-net
+
+networks:
+  argus-net:
+    name: argus-net
+    driver: bridge
+
+volumes:
+  redis-data:
+    name: redis-data

@@ -31,10 +31,13 @@ import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -48,6 +51,12 @@ import org.springframework.transaction.annotation.Transactional;
 @ActiveProfiles("test")
 @Transactional
 class MetricStoreServiceImplPersistenceTest {
+
+    @MockitoBean
+    private RedissonClient redissonClient;
+
+    @MockitoBean
+    private StringRedisTemplate stringRedisTemplate;
 
     @Autowired
     private MetricStoreServiceImpl metricStoreService;
