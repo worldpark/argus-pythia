@@ -1,6 +1,11 @@
 spring:
   application:
     name: argus
+  threads:
+    virtual:
+      enabled: true
+  main:
+    keep-alive: true
   kafka:
     bootstrap-servers: localhost:9092
     producer:
@@ -33,5 +38,14 @@ argus:
     key-prefix: "argus:buffer:"
   scheduling:
     enabled: true
+  concurrency:
+    prometheus:
+      permits: 4
+      acquire-timeout: 200ms
+      max-attempts: 3
+    kafka-publish:
+      permits: 8
+      acquire-timeout: 100ms
+      max-attempts: 3
 server:
   port: 80
