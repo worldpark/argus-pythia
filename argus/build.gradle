@@ -34,4 +34,5 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    systemProperty 'benchmarkTests', System.getProperty('benchmarkTests', 'false')
 }

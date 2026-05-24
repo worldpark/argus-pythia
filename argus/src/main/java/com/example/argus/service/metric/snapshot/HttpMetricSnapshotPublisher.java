@@ -20,16 +20,21 @@ public class HttpMetricSnapshotPublisher {
     private final MetricBufferService bufferService;
 
     public CompletableFuture<SendResult<String, HttpMetricSnapshotDto>> publish() {
+        long start = System.nanoTime();
         HttpMetricSnapshotDto snapshot = assembler.assemble();
         String serviceId = snapshot.application() != null ? snapshot.application() : "unknown";
         CompletableFuture<SendResult<String, HttpMetricSnapshotDto>> future = producer.send(serviceId, snapshot);
         future.whenComplete((result, ex) -> {
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000;
             if (ex != null) {
+                log.warn("metric-publish failed: metricType=HTTP serviceId={} elapsedMs={}", serviceId, elapsedMs, ex);
                 try {
                     bufferService.enqueueOnFailure(MetricBufferType.HTTP, snapshot);
                 } catch (Exception bufferEx) {
                     log.error("metric-buffer: fallback enqueue failed for HTTP snapshot, snapshot will be lost", bufferEx);
                 }
+            } else {
+                log.info("metric-publish completed: metricType=HTTP serviceId={} elapsedMs={}", serviceId, elapsedMs);
             }
         });
         return future;
