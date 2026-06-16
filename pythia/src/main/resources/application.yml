@@ -4,7 +4,7 @@ spring:
   jackson:
     time-zone: Asia/Seoul
   datasource:
-    url: jdbc:postgresql://localhost:5432/pythia
+    url: jdbc:postgresql://localhost:12005/pythia
     username: ${DB_USERNAME:pythia}
     password: ${DB_PASSWORD:pythia}
     driver-class-name: org.postgresql.Driver
@@ -18,7 +18,7 @@ spring:
     show-sql: false
     open-in-view: false
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: localhost:12002
     consumer:
       group-id: pythia
       auto-offset-reset: earliest
@@ -26,7 +26,7 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      port: ${REDIS_PORT:12004}
       password: ${REDIS_PASSWORD:}
       timeout: 3s
       lettuce:

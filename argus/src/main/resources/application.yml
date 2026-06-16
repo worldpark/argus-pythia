@@ -7,7 +7,7 @@ spring:
   main:
     keep-alive: true
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: localhost:12002
     producer:
       acks: all
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -17,11 +17,11 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      port: ${REDIS_PORT:12004}
       timeout: ${REDIS_TIMEOUT:2000ms}
 
 prometheus:
-  base-url: http://localhost:9090
+  base-url: http://localhost:12000
 
 argus:
   kafka:

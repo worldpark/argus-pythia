@@ -1,8 +1,11 @@
 # Spring Boot WAS compose (argus + pythia)
 # Prerequisite: bring up infra compose files first so that the external networks
-# argus-net (kafka/postgres) and prometheus-net (prometheus/grafana) exist.
+# monitoring-argus-net (kafka/postgres/redis) and monitoring-prometheus-net (prometheus/grafana) exist.
+#   docker compose -f docker/docker-compose.infra.yml up -d   # 한 번에 (권장)
+# 또는 개별 기동:
 #   docker compose -f docker/kafka/docker-compose.yml up -d
 #   docker compose -f docker/docker-compose.postgres.yml up -d
+#   docker compose -f docker/redis/docker-compose.yml up -d
 #   docker compose -f docker/prometheus/docker-compose.yml up -d
 #
 # depends_on is intentionally NOT used: the dependent services (kafka, postgres,
@@ -11,54 +14,58 @@
 # own retry behavior together with `restart: unless-stopped`.
 
 services:
-  argus:
+  monitoring-argus:
     build:
       context: ../../argus
       dockerfile: Dockerfile
     image: was-argus:latest
-    container_name: argus
+    container_name: monitoring-argus
     ports:
       - "80:80"
     env_file:
       - .env
     environment:
       # Spring Boot relaxed-binding overrides for container DNS
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      PROMETHEUS_BASE_URL: http://prometheus:9090
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: monitoring-kafka:29092
+      PROMETHEUS_BASE_URL: http://monitoring-prometheus:9090
+      REDIS_HOST: monitoring-redis
+      REDIS_PORT: 6379
       TZ: Asia/Seoul
     networks:
-      - argus-net
-      - prometheus-net
+      - monitoring-argus-net
+      - monitoring-prometheus-net
     restart: unless-stopped
 
-  pythia:
+  monitoring-pythia:
     build:
       context: ../../pythia
       dockerfile: Dockerfile
     image: was-pythia:latest
-    container_name: pythia
+    container_name: monitoring-pythia
     ports:
       - "8080:8080"
     env_file:
       - .env
     environment:
       # Spring Boot relaxed-binding overrides for container DNS / secrets
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pythia
+      SPRING_DATASOURCE_URL: jdbc:postgresql://monitoring-postgres:5432/pythia
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: monitoring-kafka:29092
+      REDIS_HOST: monitoring-redis
+      REDIS_PORT: 6379
       SPRING_MAIL_USERNAME: ${MAIL_USERNAME}
       SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}
       SPRING_AI_OPENAI_API_KEY: ${OPENAI_API_KEY}
       TZ: Asia/Seoul
     networks:
-      - argus-net
+      - monitoring-argus-net
     restart: unless-stopped
 
 networks:
-  argus-net:
+  monitoring-argus-net:
     external: true
-    name: argus-net
-  prometheus-net:
+    name: monitoring-argus-net
+  monitoring-prometheus-net:
     external: true
-    name: prometheus-net
+    name: monitoring-prometheus-net

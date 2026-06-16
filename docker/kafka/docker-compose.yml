@@ -1,16 +1,16 @@
 services:
-  kafka:
+  monitoring-kafka:
     image: apache/kafka:3.8.0
-    container_name: kafka
-    hostname: kafka
+    container_name: monitoring-kafka
+    hostname: monitoring-kafka
     ports:
-      - "9092:9092"
+      - "12002:9092"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@monitoring-kafka:9093
       KAFKA_LISTENERS: CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://monitoring-kafka:29092,EXTERNAL://localhost:12002
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
@@ -30,13 +30,13 @@ services:
       retries: 10
       start_period: 20s
     networks:
-      - argus-net
+      - monitoring-argus-net
 
-  kafka-init:
+  monitoring-kafka-init:
     image: apache/kafka:3.8.0
-    container_name: kafka-init
+    container_name: monitoring-kafka-init
     depends_on:
-      kafka:
+      monitoring-kafka:
         condition: service_healthy
     restart: "no"
     environment:
@@ -45,52 +45,52 @@ services:
     command:
       - |
         /opt/kafka/bin/kafka-topics.sh \
-          --bootstrap-server kafka:29092 \
+          --bootstrap-server monitoring-kafka:29092 \
           --create --if-not-exists \
           --topic jvm.metrics.raw \
           --partitions 3 \
           --replication-factor 1 && \
         /opt/kafka/bin/kafka-topics.sh \
-          --bootstrap-server kafka:29092 \
+          --bootstrap-server monitoring-kafka:29092 \
           --create --if-not-exists \
           --topic hikari.metrics.raw \
           --partitions 3 \
           --replication-factor 1 && \
         /opt/kafka/bin/kafka-topics.sh \
-          --bootstrap-server kafka:29092 \
+          --bootstrap-server monitoring-kafka:29092 \
           --create --if-not-exists \
           --topic http.metrics.raw \
           --partitions 3 \
           --replication-factor 1 && \
         /opt/kafka/bin/kafka-topics.sh \
-          --bootstrap-server kafka:29092 \
+          --bootstrap-server monitoring-kafka:29092 \
           --create --if-not-exists \
           --topic jvm.alert \
           --partitions 1 \
           --replication-factor 1
     networks:
-      - argus-net
+      - monitoring-argus-net
 
-  kafka-ui:
+  monitoring-kafka-ui:
     image: provectuslabs/kafka-ui:v0.7.2
-    container_name: kafka-ui
+    container_name: monitoring-kafka-ui
     ports:
-      - "8989:8080"
+      - "12003:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: monitoring-kafka:29092
       TZ: Asia/Seoul
     depends_on:
-      kafka:
+      monitoring-kafka:
         condition: service_healthy
     profiles:
       - ui
     networks:
-      - argus-net
+      - monitoring-argus-net
 
 networks:
-  argus-net:
-    name: argus-net
+  monitoring-argus-net:
+    name: monitoring-argus-net
     driver: bridge
 
 volumes:

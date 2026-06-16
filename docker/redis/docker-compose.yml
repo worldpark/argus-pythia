@@ -1,9 +1,9 @@
 services:
-  redis:
+  monitoring-redis:
     image: redis:7.4-alpine
-    container_name: jvm-monitoring-redis
+    container_name: monitoring-redis
     ports:
-      - "6379:6379"
+      - "12004:6379"
     environment:
       TZ: Asia/Seoul
     command: redis-server --appendonly yes
@@ -16,11 +16,11 @@ services:
       retries: 10
       start_period: 10s
     networks:
-      - argus-net
+      - monitoring-argus-net
 
 networks:
-  argus-net:
-    name: argus-net
+  monitoring-argus-net:
+    name: monitoring-argus-net
     driver: bridge
 
 volumes:

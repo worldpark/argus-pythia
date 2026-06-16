@@ -1,9 +1,9 @@
 services:
-  postgres:
+  monitoring-postgres:
     image: postgres:16-alpine
-    container_name: postgres
+    container_name: monitoring-postgres
     ports:
-      - "5432:5432"
+      - "12005:5432"
     environment:
       POSTGRES_DB: pythia
       POSTGRES_USER: pythia
@@ -18,11 +18,11 @@ services:
       retries: 10
       start_period: 20s
     networks:
-      - argus-net
+      - monitoring-argus-net
 
 networks:
-  argus-net:
-    name: argus-net
+  monitoring-argus-net:
+    name: monitoring-argus-net
     driver: bridge
 
 volumes:
