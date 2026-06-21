@@ -13,7 +13,7 @@
 # 상대경로(예: prometheus 의 ./prometheus.yml)는 해당 파일 위치 기준으로
 # 그대로 해석된다.
 include:
-  - kafka/docker-compose.yml
-  - docker-compose.postgres.yml
-  - redis/docker-compose.yml
-  - prometheus/docker-compose.yml
+  - ../kafka/docker-compose.yml
+  - ../docker-compose.postgres.yml
+  - ../redis/docker-compose.yml
+  - ../prometheus/docker-compose.yml
